@@ -442,6 +442,18 @@
   .order-icon {
     font-size: 2rem;
     transition: color 0.3s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .order-icon svg {
+    width: 30px; height: 30px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: block;
   }
   .order-label {
     font-family: 'Cormorant Garamond', serif;
@@ -528,8 +540,30 @@
   }
   .contact-icon {
     font-size: 1.2rem;
-    margin-top: 0.1rem;
+    margin-top: 0.15rem;
     flex-shrink: 0;
+    color: var(--gold-dark);
+    display: inline-flex;
+    align-items: flex-start;
+    justify-content: center;
+    width: 22px;
+  }
+  .contact-icon svg {
+    width: 20px; height: 20px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: block;
+  }
+  .map-placeholder svg.map-icon {
+    width: 34px; height: 34px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .contact-item-content {
     display: block;
@@ -1051,17 +1085,17 @@
 
   <div class="order-methods">
     <a href="https://wa.me/32489702177" class="order-card reveal">
-      <span class="order-icon">💬</span>
+      <span class="order-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg></span>
       <span class="order-label">WhatsApp</span>
       <span class="order-sub">Hızlı yanıt<br>Haftanın 7 günü</span>
     </a>
     <a href="tel:+32489702177" class="order-card reveal">
-      <span class="order-icon">📞</span>
+      <span class="order-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
       <span class="order-label">Telefon</span>
       <span class="order-sub">+32 489 70 21 77</span>
     </a>
     <a href="https://www.instagram.com/cavuszade_bruxelles/" target="_blank" class="order-card reveal">
-      <span class="order-icon">📸</span>
+      <span class="order-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></span>
       <span class="order-label">Instagram</span>
       <span class="order-sub">@cavuszade_bruxelles</span>
     </a>
@@ -1079,7 +1113,7 @@
     <div class="contact-info-block reveal">
 
       <div class="contact-item">
-        <span class="contact-icon">📍</span>
+        <span class="contact-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
         <div class="contact-item-content">
           <div class="contact-item-label">Adres</div>
           <div class="contact-item-value">Avenue Rogier 30<br>1030 Schaerbeek, Brüksel</div>
@@ -1087,7 +1121,7 @@
       </div>
 
       <div class="contact-item">
-        <span class="contact-icon">📞</span>
+        <span class="contact-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
         <div class="contact-item-content">
           <div class="contact-item-label">Telefon & WhatsApp</div>
           <div class="contact-item-value">
@@ -1097,7 +1131,7 @@
       </div>
 
       <div class="contact-item">
-        <span class="contact-icon">⏰</span>
+        <span class="contact-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
         <div class="contact-item-content">
           <div class="contact-item-label">Çalışma Saatleri</div>
           <div class="contact-item-value">
@@ -1115,7 +1149,7 @@
       </div>
 
       <div class="contact-item">
-        <span class="contact-icon">🌐</span>
+        <span class="contact-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
         <div class="contact-item-content">
           <div class="contact-item-label">Sosyal Medya</div>
           <div class="contact-item-value">
@@ -1138,7 +1172,7 @@
 
     <div class="reveal">
       <a href="https://maps.google.com/?q=Avenue+Rogier+30+1030+Schaerbeek+Brussels" target="_blank" class="map-placeholder">
-        <span>🗺️</span>
+        <svg class="map-icon" viewBox="0 0 24 24" aria-hidden="true"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
         <span class="map-label">Haritada Görüntüle</span>
         <span class="map-addr">Av. Rogier 30<br>1030 Schaerbeek, Brüksel</span>
         <span class="map-btn">Yol Tarifi Al →</span>
