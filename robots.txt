@@ -1,0 +1,18 @@
+# robots.txt — Çavuşzade Bruxelles
+# cavuszadebruxelles.com
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://cavuszadebruxelles.com/sitemap.xml
+
+# Eski domain'den yönlendirme — Google bu dosyayı yeni adreste bulur
+# (cavuszadebaklava.com → cavuszadebruxelles.com geçişi Google Search Console üzerinden teyit edilmelidir)
+
+# Gereksiz dosyaları taramaya kapatma
+Disallow: /wp-admin/
+Disallow: /cgi-bin/
+Disallow: /*.php$
+Disallow: /*.json$
+Disallow: /tmp/
