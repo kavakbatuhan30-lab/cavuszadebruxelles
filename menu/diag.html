@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video diagnostic — Çavuşzade</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#11100e;color:#e8e2d6;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;padding:16px}
+  h1{font-size:16px;letter-spacing:1px;color:#C9A84C;margin-bottom:4px}
+  .sub{color:#8a8378;font-size:12px;margin-bottom:16px}
+  .row{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #262320;align-items:flex-start}
+  .k{flex:0 0 148px;color:#8a8378}
+  .v{flex:1;word-break:break-all}
+  .ok{color:#7ac77a}.bad{color:#ff6b5e}.warn{color:#e0b64a}
+  #verdict{margin:16px 0;padding:14px;border-radius:8px;background:#1c1a17;border:1px solid #3a352e;font-size:15px;line-height:1.6}
+  #verdict b{color:#C9A84C}
+  h2{font-size:13px;color:#C9A84C;margin:20px 0 6px;letter-spacing:1px}
+  #log{background:#000;padding:10px;border-radius:6px;max-height:210px;overflow:auto;font-size:12px;color:#9a948a;white-space:pre-wrap}
+  video{width:100%;max-width:340px;border:1px solid #3a352e;border-radius:6px;background:#000;display:block;margin-top:8px}
+  .note{color:#8a8378;font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+
+<h1>ÇAVUŞZADE — VIDEO DIAGNOSTIC</h1>
+<div class="sub">Open this file the same way you open the menu. Wait ~5 seconds, then read the verdict.</div>
+
+<div id="verdict">Running…</div>
+
+<h2>ENVIRONMENT</h2>
+<div id="env"></div>
+
+<h2>VIDEO ELEMENT</h2>
+<div id="vid"></div>
+
+<h2>LIVE TEST — you should see rotating baklava plates below</h2>
+<video id="t" muted loop playsinline preload="auto" controls
+       poster="img/ring-poster.webp" src="img/ring.mp4"></video>
+<div class="note">If this box is black or shows a still image that never moves, press ▶. If pressing ▶ makes it move, the file is fine and the problem is autoplay.</div>
+
+<h2>EVENT LOG</h2>
+<div id="log"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const log=[];
+function L(m){log.unshift(new Date().toISOString().substr(14,9)+'  '+m);$('log').textContent=log.join('\n');}
+function row(host,k,v,cls){
+  const d=document.createElement('div');d.className='row';
+  d.innerHTML='<div class="k"></div><div class="v '+(cls||'')+'"></div>';
+  d.children[0].textContent=k;d.children[1].textContent=v;
+  $(host).appendChild(d);
+}
+
+/* ---------- environment ---------- */
+let saved='(none)';
+let lsWorks=true;
+try{ saved = localStorage.getItem('cz_lang') || '(none)'; }catch(e){ lsWorks=false; saved='BLOCKED: '+e.name; }
+
+const proto = location.protocol;
+row('env','protocol', proto, proto==='file:'?'warn':'ok');
+row('env','url', location.href);
+row('env','saved language', saved, saved==='(none)'?'ok':'warn');
+row('env','localStorage', lsWorks?'works':'blocked', lsWorks?'ok':'bad');
+row('env','reduced motion', matchMedia('(prefers-reduced-motion: reduce)').matches?'ON — video suppressed':'off',
+     matchMedia('(prefers-reduced-motion: reduce)').matches?'bad':'ok');
+const c=navigator.connection;
+row('env','save-data', c? (c.saveData?'ON — video suppressed':'off') : 'unknown', c&&c.saveData?'bad':'ok');
+row('env','connection', c? (c.effectiveType||'?') : 'unknown', (c&&/2g/.test(c.effectiveType||''))?'bad':'ok');
+row('env','user agent', navigator.userAgent);
+
+/* ---------- can the browser even decode this? ---------- */
+const probe=document.createElement('video');
+const canH264 = probe.canPlayType('video/mp4; codecs="avc1.4D401E"');
+row('env','H.264 support', canH264||'NO', canH264?'ok':'bad');
+
+/* ---------- is the file reachable? ---------- */
+if(proto!=='file:'){
+  fetch('img/ring.mp4',{method:'HEAD'})
+    .then(r=>row('env','ring.mp4 HTTP', r.status+' '+r.statusText+'  ('+(r.headers.get('content-length')||'?')+' bytes)', r.ok?'ok':'bad'))
+    .catch(e=>row('env','ring.mp4 HTTP','FETCH FAILED: '+e.message,'bad'));
+}else{
+  row('env','ring.mp4 HTTP','skipped (file:// blocks fetch)','warn');
+}
+
+/* ---------- the video element ---------- */
+const v=$('t');
+const NET=['EMPTY','IDLE','LOADING','NO_SOURCE'];
+const RDY=['HAVE_NOTHING','HAVE_METADATA','HAVE_CURRENT_DATA','HAVE_FUTURE_DATA','HAVE_ENOUGH_DATA'];
+const ERR={1:'ABORTED',2:'NETWORK',3:'DECODE',4:'SRC_NOT_SUPPORTED / FILE NOT FOUND'};
+
+['loadstart','loadedmetadata','loadeddata','canplay','canplaythrough','playing','pause','stalled','suspend','waiting','error','abort']
+  .forEach(ev=>v.addEventListener(ev,()=>L('event: '+ev)));
+
+v.addEventListener('error',()=>{
+  const e=v.error;
+  L('ERROR code='+(e&&e.code)+' ('+(e?ERR[e.code]:'?')+') msg='+(e&&e.message));
+});
+
+let autoplayResult='pending';
+const p=v.play();
+if(p&&p.then){
+  p.then(()=>{autoplayResult='ALLOWED';L('play() resolved — autoplay allowed');})
+   .catch(e=>{autoplayResult='BLOCKED ('+e.name+')';L('play() rejected: '+e.name+' — '+e.message);});
+}else{ autoplayResult='unknown (old browser)'; }
+
+/* ---------- report ---------- */
+function report(){
+  $('vid').innerHTML='';
+  const e=v.error;
+  row('vid','resolved src', v.currentSrc||'(none)', v.currentSrc?'ok':'bad');
+  row('vid','networkState', v.networkState+' '+NET[v.networkState], v.networkState===3?'bad':'');
+  row('vid','readyState', v.readyState+' '+RDY[v.readyState], v.readyState>=2?'ok':'bad');
+  row('vid','error', e? (e.code+' '+ERR[e.code]) : 'none', e?'bad':'ok');
+  row('vid','videoWidth×Height', v.videoWidth+'×'+v.videoHeight, v.videoWidth?'ok':'bad');
+  row('vid','duration', isNaN(v.duration)?'unknown':v.duration.toFixed(1)+'s', v.duration?'ok':'bad');
+  row('vid','currentTime', v.currentTime.toFixed(2)+'s', v.currentTime>0?'ok':'warn');
+  row('vid','paused', String(v.paused), v.paused?'bad':'ok');
+  row('vid','autoplay', autoplayResult, /ALLOWED/.test(autoplayResult)?'ok':'bad');
+  row('vid','buffered', v.buffered.length? v.buffered.end(0).toFixed(1)+'s' : 'nothing', v.buffered.length?'ok':'bad');
+
+  /* verdict */
+  let t='', cls='';
+  if(e && e.code===4){
+    t='<b>ring.mp4 was not found or cannot be decoded.</b> The file is missing from the img folder, or the path is wrong. Check that menu/img/ring.mp4 exists.';
+  }else if(!canH264){
+    t='<b>This browser cannot decode H.264.</b> Unusual — try Chrome, Edge or Safari.';
+  }else if(matchMedia('(prefers-reduced-motion: reduce)').matches){
+    t='<b>Your system has "reduce motion" enabled.</b> The menu deliberately suppresses the video in that case. Turn it off in Windows: Settings → Accessibility → Visual effects → Animation effects.';
+  }else if(c && c.saveData){
+    t='<b>Data Saver is on.</b> The menu deliberately skips the video to save data. Turn it off in your browser settings.';
+  }else if(v.readyState>=2 && !v.paused && v.currentTime>0){
+    t='<b class="ok">The video works.</b> It is decoding and playing here. So the file, the path and autoplay are all fine — the problem is only that you are not reaching the splash screen. Open <b>index.html?splash</b>';
+  }else if(/BLOCKED/.test(autoplayResult)){
+    t='<b>Autoplay is blocked in this browser.</b> The file itself is fine. Press ▶ above to confirm it plays.';
+  }else if(v.readyState<2){
+    t='<b>The video is not loading.</b> networkState='+NET[v.networkState]+', nothing buffered. If protocol is <b>file:</b> try opening the menu through a local server instead.';
+  }else{
+    t='Inconclusive — send me a screenshot of this whole page.';
+  }
+  $('verdict').innerHTML=t;
+}
+report();
+setInterval(report,1000);
+L('diagnostic started');
+</script>
+</body>
+</html>
