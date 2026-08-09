@@ -265,7 +265,6 @@
 
   /* Dil degistirme tekrarlanan bir islem — gorkemli acilis sadece ilk sefere ait.
      Yeniden acilista tum kademeler iptal, hizli ve sade bir gecis. */
-  #splash.instant, #splash.instant .inner{transition:none}
   #splash.reopen{transition-duration:.24s}
   #splash.reopen .inner{transition-duration:.26s}
   #splash.reopen .corner,
@@ -963,7 +962,6 @@ const FLAGS = {
 };
 
 const LANGS = ['tr','fr','nl','en'];
-const STORE_KEY = 'cz_lang';
 let lang = 'tr';
 
 /* Secilen adetler: { urunId: adet }. Dil degisince korunur. */
@@ -1004,7 +1002,7 @@ function renderSplash(){
       $('langGrid').querySelectorAll('.langbtn').forEach(o => o.classList.remove('chosen'));
       b.classList.add('chosen');
       setLang(b.dataset.lang);
-      setTimeout(() => closeSplash(true), 150);
+      setTimeout(closeSplash, 150);
     })
   );
 }
@@ -1088,13 +1086,12 @@ function renderMenu(){
 function setLang(l){
   if(!I18N[l]) l = 'tr';
   lang = l;
-  try{ localStorage.setItem(STORE_KEY, l); }catch(e){}
   renderMenu();
 }
 
 /* ========================= ARKA PLAN VIDEOSU =========================
-   1.2 MB'lik halka sadece perde gercekten gorunecekse inisin. Kayitli dili
-   olan ziyaretci perdeyi hic gormuyor — ona hic indirmiyoruz. */
+   1.2 MB'lik halka: veri tasarrufu acik ya da sebeke kotuyse indirilmez,
+   poster goruntusu yeter. */
 let ringStarted = false;
 
 function ringAllowed(){
@@ -1125,15 +1122,13 @@ function resumeRing(){
 }
 
 /* Perde kalkarken menu ayni anda yerine otursun — bos bir capraz gecis degil,
-   tek bir devir teslim hareketi. animated=false ise (kayitli dil) aninda gec. */
-function closeSplash(animated){
+   tek bir devir teslim hareketi. */
+function closeSplash(){
   const s = $('splash');
-  if(animated){
-    document.body.classList.remove('menu-in');
-    void document.body.offsetWidth;      /* reflow: animasyon bastan calissin */
-    document.body.classList.add('menu-in');
-    restageCards();
-  }
+  document.body.classList.remove('menu-in');
+  void document.body.offsetWidth;        /* reflow: animasyon bastan calissin */
+  document.body.classList.add('menu-in');
+  restageCards();
   s.classList.add('hide');
   const v = $('ringVid');
   if(v && ringStarted) v.pause();        /* perde kapaliyken bosuna kare cozme */
@@ -1253,30 +1248,10 @@ function revealCards(){
 /* ========================= BASLANGIC ========================= */
 
 (function init(){
+  /* Perde her acilista gosterilir, dil hatirlanmaz: masadaki telefonu birden
+     fazla musteri okutuyor — her okutan kendi dilini secsin. */
   renderSplash();
-
-  let saved = null;
-  try{ saved = localStorage.getItem(STORE_KEY); }catch(e){}
-
-  /* ?splash ile perdeyi zorla goster: kayitli dili olan cihazda test/tanitim icin.
-     Musteri akisi degismiyor — normal ziyarette dil bir kez soruluyor. */
-  const forceSplash = /(^|[?&#])splash(&|=|$)/.test(location.search + location.hash);
-
-  if(saved && I18N[saved] && !forceSplash){
-    lang = saved;
-    /* Ayni cihaz tekrar okuttu -> menuye dogrudan gir.
-       Perde hic gorunmesin: gecisi kapat, kapat, bir kare sonra geri ac. */
-    const s = $('splash');
-    s.classList.add('instant');
-    closeSplash(false);
-    /* Gecisi geri ac. Sayfa arka planda acildiysa rAF donar (telefon QR'i arka
-       sekmede acabiliyor) — o yuzden zamanlayici da yedekte dursun. */
-    const thaw = () => s.classList.remove('instant');
-    requestAnimationFrame(() => requestAnimationFrame(thaw));
-    setTimeout(thaw, 120);
-  } else {
-    startRing();               /* perde gorunecek: halkayi simdi indir */
-  }
+  startRing();
   renderMenu();
 })();
 </script>

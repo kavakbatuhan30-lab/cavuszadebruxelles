@@ -54,15 +54,9 @@ function row(host,k,v,cls){
 }
 
 /* ---------- environment ---------- */
-let saved='(none)';
-let lsWorks=true;
-try{ saved = localStorage.getItem('cz_lang') || '(none)'; }catch(e){ lsWorks=false; saved='BLOCKED: '+e.name; }
-
 const proto = location.protocol;
 row('env','protocol', proto, proto==='file:'?'warn':'ok');
 row('env','url', location.href);
-row('env','saved language', saved, saved==='(none)'?'ok':'warn');
-row('env','localStorage', lsWorks?'works':'blocked', lsWorks?'ok':'bad');
 row('env','reduced motion', matchMedia('(prefers-reduced-motion: reduce)').matches?'ON — video suppressed':'off',
      matchMedia('(prefers-reduced-motion: reduce)').matches?'bad':'ok');
 const c=navigator.connection;
