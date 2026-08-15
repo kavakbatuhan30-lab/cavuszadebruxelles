@@ -1,138 +1,134 @@
 # Çavuşzade Baklava Menüsü — Proje Durumu
 
-**Yazılış tarihi:** 2026-08-15 (okul PC'deki Claude için)
-**Amacı:** Okul PC'deki Claude'un projeyi hızla anlaması için durum özeti
+**Son güncelleme:** 2026-08-15
+**Amacı:** Başka bir bilgisayarda çalışmaya devam edecek olan için durum özeti.
+Buradaki her madde dosyalardan okunarak doğrulandı, hafızadan yazılmadı.
 
-## Proje Nedir
+## Proje nedir
 
-Çavuşzade Baklava (Brüksel) için mobil QR menüsü. Masaya geliştirilmiş, bir HTML dosyası, tüm görseller ve animasyon base64/inline gömülü.
+Çavuşzade Baklava (Brüksel) için masa QR menüsü. Tek sayfa: `menu/index.html`
+içinde CSS ve JS gömülü; görseller ve animasyon `menu/img/` altında ayrı
+dosyalar (base64 değil — WebP ve MP4 olarak servis ediliyor).
 
-**Canlı sayfa:** cavuszadebruxelles.com/menu (şu anki durum: **yayında DEĞİL** — Pages build başarısız)
+**Hedef adres:** cavuszadebruxelles.com/menu
+**Durum: YAYINDA DEĞİL** — GitHub Pages derlemesi başarısız (aşağıda).
 
-## Dosya Yapısı
+## Dosya yapısı
 
 ```
 cavuszade/
 ├── menu/
-│   ├── index.html                (51.6 KB, menünün kendisi)
-│   ├── img/
-│   │   ├── ring.mp4               (387 KB, dönüştürülmüş baklava animasyonu)
-│   │   ├── ring-poster.webp       (10.6 KB, animasyon başlangıcı poster)
-│   │   ├── *.webp                 (8 ürün fotoğrafı, base64 gömülmek üzere)
-│   └── ...
-├── docs/superpowers/specs/
-│   └── halka-animasyonu-notlari.md  (⚠️ OKUMASAL — teknik ölçümler + denenen sürümler)
+│   ├── index.html                    menünün tamamı (~52 KB)
+│   └── img/
+│       ├── ring.mp4                  387 KB, dönen baklava animasyonu
+│       ├── ring-poster.webp          10,6 KB, animasyonun ilk karesi
+│       └── *.webp                    8 ürün fotoğrafı + logo
+├── docs/
+│   ├── halka-animasyonu-notlari.md   ⚠️ ÖNCE BUNU OKU — ölçümler, denenip
+│   │                                 bırakılan sürümler ve nedenleri
+│   └── 2026-08-04-qr-menu-design.md  ilk tasarım kararları
+├── index.html                        ana site (menü değil)
+├── imgcavuszade/                     ana sitenin görselleri
 └── .gitignore
 ```
 
-## Menü Özellikleri (TAMAMLANMIŞ)
+**Repoda olmayan:** `animo-showcase-stream-720p.mp4` (80 MB kaynak video,
+`.gitignore`'da). Yalnızca animasyonu yeniden kodlamak gerekirse lazım —
+türetilmiş `ring.mp4` repoda olduğu için menü üzerinde çalışmaya engel değil.
 
-✅ **Açılış ekranı:** Dil seçimi (TR/FR/NL/EN) + dönüştürülmüş baklava madalyonu  
-✅ **Ana menü:** 8 baklava (kg fiyat, parça seçimi ile dinamik fiyat) + 8 içecek  
-✅ **Tasarım:** Çavuşzade renklerine uygun (altın #C9A84C, krem #FAF5EC, kahve tonları)  
-✅ **Dil kalıcılığı:** localStorage — sayfa yenilenince de seçili dil kalır  
-✅ **Responsive:** Masaüstü + mobil (375×812 test edildi)  
-✅ **Erişilebilirlik:** Azaltılmış hareket + veri tasarrufu desteği  
+## Menüde ne var
 
-## Animasyon Durumu (SON DEĞİŞİKLİK: Madalyon → Şeffaf → Madalyon GERİ)
+| | |
+|---|---|
+| **Baklava** | 8 çeşit, **sadece kilogram fiyatı** (€30–48). Adet/dilim fiyatı bilinçli olarak yok. |
+| **İçecek** | **2 kalem**, adet fiyatı: Su €1,00 · Meyveli Soda €2,00. Fotoğrafsız satır olarak görünüyorlar. |
+| **Diller** | TR / FR / NL / EN. Ürün adları dört dilde de Türkçe kalır, sadece açıklamalar çevrilir. |
+| **Dil seçimi** | Açılış perdesinde bayraklarla. `localStorage`'da saklanıyor. |
+| **Animasyon** | Açılış perdesinin ortasında dönen baklava madalyonu. |
 
-### Şu anki: Koyu Madalyon Sürümü (AKTIF)
+Fiyatlar ve ürünler tek yerde: `menu/index.html` içindeki `PRODUCTS` dizisi
+(~873. satır). Dosyanın başındaki yorum "düzenlemek için burayı değiştir,
+başka yeri değil" diyor.
 
-Video siyah zeminde dönüştürülmüş tabak halkası, `mix-blend-mode: screen` ile koyu daire içine gömülü. Sayfa zemininin rengi değişse bile video intakt kalır.
+> **Not:** Parça/adet seçici bir ara vardı, sonradan kaldırıldı. Baklavalarda
+> yalnızca kg fiyatı gösteriliyor. Geri isteniyorsa sıfırdan yazılması gerekir.
 
-- **Dosya:** `menu/img/ring.mp4` (387 KB)
-- **Poster:** `menu/img/ring-poster.webp` (10.6 KB)
-- **Döngü:** 16.00 sn (RMS ölçüm: 0.29)
-- **FPS:** 30, çözünürlük: 560×560
+## Animasyon durumu
 
-### Denenen ve Geri Alınan: Şeffaf Zemin Sürümü
+**Kullanımda: koyu madalyon sürümü.** Video siyah zeminde dönen tabak halkası;
+koyu bir dairenin içinde `mix-blend-mode: screen` ile birleşiyor. Böylece sayfa
+zemininin rengi denklemden çıkıyor — kağıt rengi değişse bile videoya
+dokunmak gerekmiyor.
 
-Gercek alfa kanalı (VP9/WebM, colorkey). Teknik olarak çalıştı ama:
+- `menu/img/ring.mp4` — 560×560, 30 fps, 16,00 sn, 387 KB
+- Döngü periyodu tahmin değil ölçüm: t=16'daki kare t=0 ile aynı (RMS 0,29)
 
-- 📱 **iPhone'da animasyon yok** (Safari VP9 alfayı güvenilir desteklemiyor)
-- 📦 **Dosya 65% büyük** (635 KB vs. 387 KB)
-- 🎥 **Halka seyreldi** (8 tabak → ~4 tabak, sönükler kesildi)
+**Denenip geri alınan: şeffaf zemin (gerçek alfa kanalı).** VP9/WebM + colorkey
+ile teknik olarak çalıştı, ama üç bedeli vardı:
 
-**Yedek:** `Desktop/cavuszade-ring-yedek/seffaf-surumu/` — geri dönülmek istenirse hazır.
+- iPhone'da animasyon yok — Safari VP9 alfayı güvenilir desteklemiyor
+- Dosya %64 daha büyük (635 KB)
+- Sönük arka tabaklar krem zeminde kirli gri leke gibi durduğu için kesilmek
+  zorunda kaldı; halka 8 yerine ~4 tabağa düştü
+
+Şeffaf sürümün dosyaları `Desktop\cavuszade-ring-yedek\seffaf-surumu\`
+klasöründe duruyor (repoda değil). Gerekçelerin tamamı ve ffmpeg komutları
+`docs/halka-animasyonu-notlari.md` içinde.
 
 ---
 
-## Bilinen Sorunlar / Yapılacaklar
+## Açık işler
 
-### 🔴 **Bloke Edici: GitHub Pages Build Başarısız**
+### 🔴 GitHub Pages derlemesi başarısız — her şeyi bloke ediyor
 
-- **Ne:** Derleme 2026-08-06'dan beri "building" durumda, başarısızlaşıyor
-- **Sebebi:** Bilinmiyor (muhtemelen Jekyll config)
-- **Çözüm:** `.nojekyll` dosya eklemek denendi ama henüz push edilmedi
-- **Sonuç:** Menü yayında değil → Pages'de deploy yok
+2026-08-06'dan beri derleme tamamlanmıyor; API'de hata ayrıntısı görünmüyor,
+durum "building"de kalıyor. Menü bu yüzden yayında değil.
 
-**Adım:**
+**En olası sebep Jekyll.** Denenecek ilk şey — `.nojekyll` **henüz
+oluşturulmadı**, sadece öneri aşamasında:
+
 ```bash
-touch .nojekyll
-git add .nojekyll
-git commit -m "GitHub Pages: disable Jekyll to fix build failure"
-git push
-# Pages'i kontrol et: settings → Pages → build logs
+touch .nojekyll && git add .nojekyll && git commit -m "Disable Jekyll build" && git push
 ```
 
-### 🟡 **Branch Ayrışması**
+Sonra GitHub → Settings → Pages → build log'una bakılmalı. Bu çözmezse
+Actions sekmesindeki başarısız çalışmanın log'u okunmalı.
 
-Lokal: 1 commit ahead  
-Origin: 4 commit ahead
+### 🟡 Baklava fiyatları teyit edilmemiş
 
-Push başlamadan önce sinkronize etmek gerek (rebase ya da merge).
+Kaynak `cavuszadebruxelles.html`, **26 Mart 2026** tarihli — dört aydan eski.
+Kodun içinde de uyarı var: "QR basılmadan önce bu fiyatlar teyit edilmeli."
+İşletmeden güncel liste alınmalı.
 
-### 🟡 **Fiyatlar Doğrulanmamış**
+İçecek fiyatları (Su €1, Soda €2) güncel görünüyor, ayrıca teyit edilebilir.
 
-**Baklava:** 26 Mart tarihli dosyadan (4+ ay eski), ama değişmiş mi bilinmiyor  
-**İçecekler:** Tam yer tutucu (çay 2.50 TL, Türk kahvesi 4.00 TL, etc.)
+### 🟡 Yayın öncesi: `noindex` kaldırılmalı
 
-Kullanıcıdan kesin fiyat alınması gerekli.
+`menu/index.html` başında `<meta name="robots" content="noindex, nofollow">`
+var — fiyatlar kesinleşene kadar arama motorlarına kapalı olsun diye. Menü
+yayına alınırken bu satır silinmeli.
 
-### 🟡 **Eksik Adet Sayıları**
+### ⚪ QR kod
 
-Fıstık Sarma + Havuç Dilim: parça seçimi yok (menü bunları görmüyor)
-
----
-
-## Ölçümler ve Teknik Kararlar
-
-Tüm detay burada: **`docs/superpowers/specs/halka-animasyonu-notlari.md`**
-
-Özet:
-- Video kaynak analizi (608×512 içerik, merkez (464,392))
-- Kırpma 656×656 @ (136,64) — ölçümle seçildi
-- Colorkey similarity=0.36 — sönük tabakları kesmek için (ölçüm sonucu)
-- Döngü periyodu 16.00 sn (tahmin değil, RMS ölçüm)
+Sayfa yayına girdikten sonra cavuszadebruxelles.com/menu için QR üretilip
+masalara konacak.
 
 ---
 
-## Sıradaki Adımlar
+## Sırayla ne yapılmalı
 
-**Öncelik sırasına göre:**
+1. `.nojekyll` ile Pages derlemesini kurtar → menü yayına girsin
+2. İşletmeden güncel fiyatları al, `PRODUCTS` dizisini güncelle
+3. `noindex` meta etiketini kaldır
+4. QR kodu üret
 
-1. `.nojekyll` ekleyip Pages'i tamir et → menü yayına alınır
-2. Branch'leri sinkronize et (rebase/merge)
-3. Fiyatları kullanıcıdan doğrula → commit et
-4. Fıstık Sarma + Havuç Dilim adet sayıları ekle
-5. QR kod oluştur ve masalara yapıştır
+## Yeni bir oturuma başlarken
 
----
+```bash
+git log --oneline -15
+git status
+```
 
-## Okul PC'deki Claude'un Yapması Gereken
-
-1. Bu dosyayı oku ✓
-2. Oku: `docs/superpowers/specs/halka-animasyonu-notlari.md`
-3. Çalıştır:
-   ```bash
-   git status
-   git log --oneline -20
-   ```
-4. Sonra bana şunu söyle:
-   - Projenin şu anki tam durumu
-   - Hangi adım yapılabilir (Pages, fiyatlar, QR?)
-   - Ne engel var
-
----
-
-**Sorular?** Dosyaya geri dön ya da bu chat'in URL'sini okul PC'de aç.
+Sonra `docs/halka-animasyonu-notlari.md` dosyasını oku — animasyonla ilgili
+her karar ve ölçüm orada. Aynı çıkmaz sokaklara tekrar girmemek için
+"denendi, olmadı" bölümleri özellikle önemli.
