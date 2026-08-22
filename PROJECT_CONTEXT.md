@@ -1,6 +1,6 @@
 # Çavuşzade Baklava Menüsü — Proje Durumu
 
-**Son güncelleme:** 2026-08-15
+**Son güncelleme:** 2026-08-22
 **Amacı:** Başka bir bilgisayarda çalışmaya devam edecek olan için durum özeti.
 Buradaki her madde dosyalardan okunarak doğrulandı, hafızadan yazılmadı.
 
@@ -10,8 +10,9 @@ Buradaki her madde dosyalardan okunarak doğrulandı, hafızadan yazılmadı.
 içinde CSS ve JS gömülü; görseller ve animasyon `menu/img/` altında ayrı
 dosyalar (base64 değil — WebP ve MP4 olarak servis ediliyor).
 
-**Hedef adres:** cavuszadebruxelles.com/menu
-**Durum: YAYINDA DEĞİL** — GitHub Pages derlemesi başarısız (aşağıda).
+**Adres:** cavuszadebruxelles.com/menu
+**Durum: YAYINDA** (2026-08-22 doğrulandı — HTTP 200, tüm görseller ve
+animasyon canlıda çalışıyor).
 
 ## Dosya yapısı
 
@@ -19,6 +20,9 @@ dosyalar (base64 değil — WebP ve MP4 olarak servis ediliyor).
 cavuszade/
 ├── menu/
 │   ├── index.html                    menünün tamamı (~52 KB)
+│   ├── qr/
+│   │   ├── cavuszade-menu.svg        vektör — BASKI İÇİN BUNU KULLAN
+│   │   └── cavuszade-menu.png        2000×2000 raster
 │   └── img/
 │       ├── ring.mp4                  387 KB, dönen baklava animasyonu
 │       ├── ring-poster.webp          10,6 KB, animasyonun ilk karesi
@@ -77,50 +81,48 @@ klasöründe duruyor (repoda değil). Gerekçelerin tamamı ve ffmpeg komutları
 
 ---
 
-## Açık işler
+## Tamamlanan yayın adımları (2026-08-22)
 
-### 🔴 GitHub Pages derlemesi başarısız — her şeyi bloke ediyor
+### ✅ GitHub Pages derlemesi — sorun kendiliğinden çözüldü
 
-2026-08-06'dan beri derleme tamamlanmıyor; API'de hata ayrıntısı görünmüyor,
-durum "building"de kalıyor. Menü bu yüzden yayında değil.
+2026-08-06'daki derleme hatası artık yok; `.nojekyll` **hiç gerekmedi**,
+oluşturulmadı. Sayfa 2026-08-22'de 200 dönüyor, `Last-Modified` son commit
+ile uyuşuyor. Bu madde kapandı — tekrar araştırmaya gerek yok.
 
-**En olası sebep Jekyll.** Denenecek ilk şey — `.nojekyll` **henüz
-oluşturulmadı**, sadece öneri aşamasında:
+### ✅ Fiyatlar teyit edildi
 
-```bash
-touch .nojekyll && git add .nojekyll && git commit -m "Disable Jekyll build" && git push
-```
+İşletme sahibi 2026-08-22'de listenin tamamını onayladı. `PRODUCTS`
+dizisindeki değerler (baklava €30–48/kg, Su €1, Soda €2) **güncel ve
+doğrudur**. Kodun içindeki "basılmadan önce teyit edilmeli" uyarısı bu
+onayla karşılanmıştır.
 
-Sonra GitHub → Settings → Pages → build log'una bakılmalı. Bu çözmezse
-Actions sekmesindeki başarısız çalışmanın log'u okunmalı.
+### ✅ `noindex` kaldırıldı
 
-### 🟡 Baklava fiyatları teyit edilmemiş
+`menu/index.html` artık arama motorlarına açık. Yerine `meta description`
+eklendi ve `/menu/` `sitemap.xml`'e girdi. Google'ın sayfayı indekslemesi
+birkaç gün sürebilir.
 
-Kaynak `cavuszadebruxelles.html`, **26 Mart 2026** tarihli — dört aydan eski.
-Kodun içinde de uyarı var: "QR basılmadan önce bu fiyatlar teyit edilmeli."
-İşletmeden güncel liste alınmalı.
+### ✅ QR kod üretildi
 
-İçecek fiyatları (Su €1, Soda €2) güncel görünüyor, ayrıca teyit edilebilir.
+`menu/qr/` altında. Hedef: `https://cavuszadebruxelles.com/menu/` (sondaki
+eğik çizgi dahil — 301 yönlendirmesini atlar).
 
-### 🟡 Yayın öncesi: `noindex` kaldırılmalı
-
-`menu/index.html` başında `<meta name="robots" content="noindex, nofollow">`
-var — fiyatlar kesinleşene kadar arama motorlarına kapalı olsun diye. Menü
-yayına alınırken bu satır silinmeli.
-
-### ⚪ QR kod
-
-Sayfa yayına girdikten sonra cavuszadebruxelles.com/menu için QR üretilip
-masalara konacak.
+- **Hata düzeltme seviyesi H** (~%30 kurtarılabilir) — masada leke/parmak izi
+  olasılığına karşı bilinçli seçim
+- Sürüm 5, 37×37 modül
+- Doğrulandı: PNG geri çözüldü, URL birebir eşleşti; ortasından %15×15'lik
+  parça silindiğinde **hâlâ okunuyor**
+- Baskıda `.svg` kullanılmalı. Sessiz alan (quiet zone) kırpılmamalı,
+  yoksa okunmaz. Önerilen basılı boyut: en az 3×3 cm.
 
 ---
 
-## Sırayla ne yapılmalı
+## Açık işler
 
-1. `.nojekyll` ile Pages derlemesini kurtar → menü yayına girsin
-2. İşletmeden güncel fiyatları al, `PRODUCTS` dizisini güncelle
-3. `noindex` meta etiketini kaldır
-4. QR kodu üret
+### ⚪ Masaya koyma
+
+QR basılıp masalara yerleştirilecek. Basımdan sonra birkaç farklı telefonla
+(iOS + Android) gerçek masa ışığında taranıp test edilmesi iyi olur.
 
 ## Yeni bir oturuma başlarken
 
