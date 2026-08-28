@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Çavuşzade — Stok</title>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    font-family:system-ui, -apple-system, sans-serif;
+    background:#F0E8D7; color:#3B1E08;
+    padding:20px; max-width:520px; margin:0 auto;
+  }
+  h1{font-size:19px; margin-bottom:4px}
+  .alt{font-size:13px; opacity:.65; margin-bottom:20px}
+  .satir{
+    display:flex; align-items:center; justify-content:space-between;
+    background:#fff; border-radius:9px; padding:13px 15px; margin-bottom:9px;
+  }
+  .satir.kapali{opacity:.55}
+  .ad{font-size:15px}
+  button{
+    font:inherit; font-size:13px; font-weight:600; cursor:pointer;
+    border:0; border-radius:7px; padding:9px 15px; min-width:96px;
+  }
+  .var{background:#2E7D32; color:#fff}
+  .yok{background:#B71C1C; color:#fff}
+  button:disabled{opacity:.5; cursor:wait}
+  input{
+    font:inherit; width:100%; padding:12px;
+    border:1px solid #C9A84C; border-radius:8px; margin-bottom:10px;
+  }
+  .hata{color:#B71C1C; font-size:13px; margin-top:10px; min-height:18px}
+  .durum{font-size:12px; opacity:.6; margin-top:16px}
+  .gizli{display:none}
+</style>
+</head>
+<body>
+
+<div id="girisEkrani">
+  <h1>Stok yönetimi</h1>
+  <p class="alt">Devam etmek için şifreyi gir.</p>
+  <input type="password" id="sifre" placeholder="Şifre" autocomplete="current-password">
+  <button class="var" id="girisBtn" style="width:100%">Giriş</button>
+  <div class="hata" id="girisHata"></div>
+</div>
+
+<div id="panel" class="gizli">
+  <h1>Stok yönetimi</h1>
+  <p class="alt">Tükenen ürünü kapat — menüde anında görünür.</p>
+  <div id="liste"></div>
+  <div class="durum" id="durum"></div>
+</div>
+
+<script>
+/* Uretim Worker'i. Yerelde gelistirirken 'http://127.0.0.1:8787' yapilabilir. */
+const API = 'https://cavuszade-stok.cavuszade-stok.workers.dev';
+
+/* Menudeki PRODUCTS kimlikleriyle birebir ayni olmali. */
+const URUNLER = [
+  { id:'fistik',       ad:'Fıstıklı Baklava' },
+  { id:'sarma',        ad:'Fıstık Sarma' },
+  { id:'havucdilim',   ad:'Havuç Dilim' },
+  { id:'bohca',        ad:'Fıstıklı Bohça' },
+  { id:'sobiyet',      ad:'Şöbiyet' },
+  { id:'sogukbaklava', ad:'Soğuk Baklava' },
+  { id:'kadayif',      ad:'Fıstıklı Kadayıf' },
+  { id:'ceviz',        ad:'Cevizli Baklava' },
+  { id:'su',           ad:'Su' },
+  { id:'soda',         ad:'Meyveli Soda' }
+];
+
+const $ = id => document.getElementById(id);
+let jeton = localStorage.getItem('stokJetonu');
+let tukenenler = new Set();
+
+async function girisYap(){
+  const btn = $('girisBtn');
+  btn.disabled = true;
+  $('girisHata').textContent = '';
+  try{
+    const r = await fetch(API + '/api/login', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ password: $('sifre').value })
+    });
+    if(!r.ok){
+      $('girisHata').textContent =
+        r.status === 401 ? 'Şifre yanlış.' :
+        r.status === 429 ? 'Çok fazla deneme. Biraz bekle.' :
+        'Giriş yapılamadı.';
+      return;
+    }
+    jeton = (await r.json()).token;
+    localStorage.setItem('stokJetonu', jeton);
+    $('sifre').value = '';
+    await panelAc();
+  }catch(e){
+    $('girisHata').textContent = 'Servise ulaşılamadı.';
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+async function panelAc(){
+  $('girisEkrani').classList.add('gizli');
+  $('panel').classList.remove('gizli');
+  await durumYukle();
+}
+
+function girisEkraninaDon(mesaj){
+  localStorage.removeItem('stokJetonu');
+  jeton = null;
+  $('panel').classList.add('gizli');
+  $('girisEkrani').classList.remove('gizli');
+  $('girisHata').textContent = mesaj;
+}
+
+async function durumYukle(){
+  try{
+    const d = await (await fetch(API + '/api/stock', { cache:'no-store' })).json();
+    tukenenler = new Set(d.out);
+    $('durum').textContent = d.updatedAt
+      ? 'Son değişiklik: ' + new Date(d.updatedAt).toLocaleString('tr-TR')
+      : 'Bugün henüz değişiklik yok.';
+  }catch(e){
+    $('durum').textContent = 'Durum okunamadı.';
+  }
+  ciz();
+}
+
+function ciz(){
+  $('liste').innerHTML = URUNLER.map(u => {
+    const kapali = tukenenler.has(u.id);
+    return `<div class="satir ${kapali ? 'kapali' : ''}">
+      <span class="ad">${u.ad}</span>
+      <button class="${kapali ? 'yok' : 'var'}" data-id="${u.id}">
+        ${kapali ? 'Tükendi' : 'Var'}
+      </button>
+    </div>`;
+  }).join('');
+
+  $('liste').querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => degistir(b.dataset.id, b)));
+}
+
+async function degistir(id, btn){
+  /* Su an tukenmis mi? Degilse bu tiklama onu tuketiyor demektir. */
+  const suAnTukenmis = tukenenler.has(id);
+  const yeniStokDurumu = suAnTukenmis;   /* tukenmisse -> var yap, varsa -> tukendi yap */
+  btn.disabled = true;
+  try{
+    const r = await fetch(API + '/api/stock', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer ' + jeton
+      },
+      body: JSON.stringify({ id, inStock: yeniStokDurumu })
+    });
+    if(r.status === 401){
+      /* Jeton suresi dolmus veya gecersiz: sifre ekranina don. */
+      girisEkraninaDon('Oturum süresi doldu, tekrar gir.');
+      return;
+    }
+    if(!r.ok) throw new Error('yazilamadi');
+    const d = await r.json();
+    tukenenler = new Set(d.out);
+    $('durum').textContent = 'Son değişiklik: ' + new Date(d.updatedAt).toLocaleString('tr-TR');
+    ciz();
+  }catch(e){
+    $('durum').textContent = 'Değişiklik kaydedilemedi, tekrar dene.';
+    ciz();   /* eski haline don */
+  }
+}
+
+$('girisBtn').addEventListener('click', girisYap);
+$('sifre').addEventListener('keydown', e => { if(e.key === 'Enter') girisYap(); });
+
+if(jeton) panelAc();
+</script>
+</body>
+</html>

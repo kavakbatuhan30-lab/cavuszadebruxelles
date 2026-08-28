@@ -16,3 +16,6 @@ Disallow: /cgi-bin/
 Disallow: /*.php$
 Disallow: /*.json$
 Disallow: /tmp/
+
+# Stok yonetim paneli — arama motorlarina kapali
+Disallow: /admin/

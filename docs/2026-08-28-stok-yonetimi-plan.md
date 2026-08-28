@@ -70,15 +70,36 @@ name = "cavuszade-stok"
 main = "src/index.js"
 compatibility_date = "2026-08-01"
 
+# Uretim degeri. Yerel gelistirmede .dev.vars bunu gecersiz kilar.
+[vars]
+IZINLI_KAYNAK = "https://cavuszadebruxelles.com"
+
 [[kv_namespaces]]
 binding = "STOK"
-id = "yerel-gelistirmede-wrangler-otomatik-olusturur"
+id = "task-7-de-gercek-kimlikle-degistirilecek"
 ```
 
-- [ ] **Step 2: Bağımlılıkları kur**
+`worker/.dev.vars` — yalnızca yerel geliştirme, repoya girmez. Şifre özeti
+Task 4'te eklenir (`auth.js` Task 2'de doğuyor, önce üretilemez):
+
+```
+IZINLI_KAYNAK="https://cavuszadebruxelles.com,http://localhost:8765,http://127.0.0.1:8765"
+JETON_ANAHTARI="yerel-gelistirme-anahtari-uretimde-kullanilmaz"
+```
+
+- [ ] **Step 2: Bağımlılıkları kur ve `.dev.vars`'ı yoksay**
 
 ```bash
 cd worker && npm install
+```
+
+Repo kökündeki `.gitignore` dosyasının sonuna ekle:
+
+```
+# Yerel Worker gelistirme degerleri -- gercek sirlar buraya girmemeli
+worker/.dev.vars
+worker/node_modules/
+worker/.wrangler/
 ```
 
 - [ ] **Step 3: Başarısız testleri yaz**
@@ -256,9 +277,18 @@ Beklenen: 13 test PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add worker/package.json worker/wrangler.toml worker/src/stock.js worker/test/stock.test.js worker/package-lock.json
+git add .gitignore worker/package.json worker/wrangler.toml \
+        worker/src/stock.js worker/test/stock.test.js worker/package-lock.json
 git commit -m "feat(worker): stock record logic with DST-safe daily reset"
 ```
+
+`.dev.vars` yoksayıldığı için commit'e girmemeli. Doğrula:
+
+```bash
+git status --short worker/
+```
+
+Beklenen: `worker/.dev.vars` listede **görünmemeli**.
 
 ---
 
@@ -647,6 +677,37 @@ describe('POST /api/stock', () => {
   });
 });
 
+describe('CORS', () => {
+  it('GET her kaynaga acik', async () => {
+    const r = await worker.fetch(istek('/api/stock', {
+      headers: { 'Origin': 'http://localhost:8765' }
+    }), env);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+
+  it('IZINLI_KAYNAK virgullu liste kabul eder', async () => {
+    env.IZINLI_KAYNAK = 'https://cavuszadebruxelles.com, http://localhost:8765';
+    const jeton = await jetonAl();
+    const r = await worker.fetch(istek('/api/stock', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': 'http://localhost:8765',
+        'Authorization': `Bearer ${jeton}`
+      },
+      body: JSON.stringify({ id: 'sarma', inStock: false })
+    }), env);
+    expect(r.status).toBe(200);
+  });
+
+  it('OPTIONS on istegi 204 doner', async () => {
+    const r = await worker.fetch(istek('/api/stock', { method: 'OPTIONS' }), env);
+    expect(r.status).toBe(204);
+    expect(r.headers.get('Access-Control-Allow-Methods')).toContain('POST');
+  });
+});
+
 describe('bilinmeyen yol', () => {
   it('404 doner', async () => {
     expect((await worker.fetch(istek('/olmayan'), env)).status).toBe(404);
@@ -683,19 +744,30 @@ const json = (govde, durum = 200, ekBaslik = {}) =>
     }
   });
 
-function corsBasliklari(env) {
-  return {
-    'Access-Control-Allow-Origin': env.IZINLI_KAYNAK ?? 'https://cavuszadebruxelles.com',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  };
+/* CORS her yanitta aciktir.
+
+   GET herkese acik, salt okunur, kimlik bilgisi tasimayan veri -- kaynak
+   kisitlamak ona bir sey katmaz (isteyen curl ile alir) ama yerel
+   gelistirmeyi kirar.
+
+   Yazma isteklerinde koruma CORS degil, asagidaki sunucu tarafi kaynak
+   denetimi ve jetondur. Cerez kullanilmadigi, yetki Authorization
+   basligiyla tasindigi icin '*' ile Authorization birlikte calisir. */
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+};
+
+function izinliKaynaklar(env) {
+  return (env.IZINLI_KAYNAK ?? 'https://cavuszadebruxelles.com')
+    .split(',').map(s => s.trim()).filter(Boolean);
 }
 
 /* Kaynak kisiti yalnizca tarayiciyi baglar; tarayici disi istemciyi
    engellemez. Asil koruma jetondur, bu ikinci savunma hatti. */
 function kaynakUygun(request, env) {
-  const izinli = env.IZINLI_KAYNAK ?? 'https://cavuszadebruxelles.com';
-  return request.headers.get('Origin') === izinli;
+  return izinliKaynaklar(env).includes(request.headers.get('Origin'));
 }
 
 async function kayitOku(env, bugun) {
@@ -705,47 +777,45 @@ async function kayitOku(env, bugun) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const cors = corsBasliklari(env);
-
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: cors });
+      return new Response(null, { status: 204, headers: CORS });
     }
 
     if (url.pathname === '/api/stock' && request.method === 'GET') {
       const kayit = await kayitOku(env, brusselsDate());
-      return json(kayit, 200, cors);
+      return json(kayit, 200, CORS);
     }
 
     if (url.pathname === '/api/login' && request.method === 'POST') {
-      if (!kaynakUygun(request, env)) return json({ error: 'forbidden_origin' }, 403, cors);
+      if (!kaynakUygun(request, env)) return json({ error: 'forbidden_origin' }, 403, CORS);
 
       let govde;
-      try { govde = await request.json(); } catch { return json({ error: 'bad_json' }, 400, cors); }
+      try { govde = await request.json(); } catch { return json({ error: 'bad_json' }, 400, CORS); }
 
       const dogru = typeof govde?.password === 'string' &&
         await verifyPassword(govde.password, env.SIFRE_TUZU, env.SIFRE_OZETI);
-      if (!dogru) return json({ error: 'invalid_password' }, 401, cors);
+      if (!dogru) return json({ error: 'invalid_password' }, 401, CORS);
 
       const exp = Date.now() + JETON_OMRU_MS;
       return json({
         token: await signToken(exp, env.JETON_ANAHTARI),
         expiresAt: new Date(exp).toISOString()
-      }, 200, cors);
+      }, 200, CORS);
     }
 
     if (url.pathname === '/api/stock' && request.method === 'POST') {
-      if (!kaynakUygun(request, env)) return json({ error: 'forbidden_origin' }, 403, cors);
+      if (!kaynakUygun(request, env)) return json({ error: 'forbidden_origin' }, 403, CORS);
 
       const yetki = request.headers.get('Authorization') ?? '';
       const jeton = yetki.startsWith('Bearer ') ? yetki.slice(7) : null;
       if (!await verifyToken(jeton, env.JETON_ANAHTARI, Date.now())) {
-        return json({ error: 'invalid_token' }, 401, cors);
+        return json({ error: 'invalid_token' }, 401, CORS);
       }
 
       let govde;
-      try { govde = await request.json(); } catch { return json({ error: 'bad_json' }, 400, cors); }
+      try { govde = await request.json(); } catch { return json({ error: 'bad_json' }, 400, CORS); }
       if (!isValidId(govde?.id) || typeof govde?.inStock !== 'boolean') {
-        return json({ error: 'invalid_id' }, 400, cors);
+        return json({ error: 'invalid_id' }, 400, CORS);
       }
 
       /* ONCE sifirlama, SONRA degisiklik. Ters sirada dunun tukenmis
@@ -754,15 +824,15 @@ export default {
       const mevcut = await kayitOku(env, bugun);
 
       if (!govde.inStock && !mevcut.out.includes(govde.id) && mevcut.out.length >= MAX_OUT) {
-        return json({ error: 'too_many_items' }, 400, cors);
+        return json({ error: 'too_many_items' }, 400, CORS);
       }
 
       const yeni = applyToggle(mevcut, govde.id, govde.inStock, new Date().toISOString());
       await env.STOK.put(ANAHTAR, JSON.stringify(yeni));
-      return json(yeni, 200, cors);
+      return json(yeni, 200, CORS);
     }
 
-    return json({ error: 'not_found' }, 404, cors);
+    return json({ error: 'not_found' }, 404, CORS);
   }
 };
 ```
@@ -917,7 +987,23 @@ async function fetchStock(){
   });
 ```
 
-- [ ] **Step 6: Worker'ı yerelde başlat ve tarayıcıda doğrula**
+- [ ] **Step 6: Yerel test şifresini `.dev.vars`'a ekle**
+
+Yerel geliştirme şifresi `test1234` olsun — üretimde kullanılmayacak, dosya
+zaten repoya girmiyor. Özeti üret:
+
+```bash
+cd worker && node -e "
+import('./src/auth.js').then(async m => {
+  const tuz = 'dGVzdC1zYWx0LTEyMzQ1Ng==';
+  console.log('SIFRE_TUZU=\"' + tuz + '\"');
+  console.log('SIFRE_OZETI=\"' + await m.hashPassword('test1234', tuz) + '\"');
+});"
+```
+
+Çıkan iki satırı `worker/.dev.vars` dosyasının sonuna ekle.
+
+- [ ] **Step 7: Worker'ı yerelde başlat ve tarayıcıda doğrula**
 
 ```bash
 cd worker && npx wrangler dev
@@ -931,7 +1017,7 @@ Ayrı bir kabukta menüyü servis et ve tarayıcıda aç. Sırayla doğrula:
 4. **Worker'ı durdur, sayfayı yenile → menü normal açılıyor, her şey "var"** (fail-open)
 5. Sekmeyi arka plana al, ürünü değiştir, sekmeye dön → liste tazeleniyor
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add menu/index.html
@@ -1302,18 +1388,18 @@ başlayacak şekilde değiştir:
       const rlAnahtar = girisAnahtari(request);
       const deneme = await girisSayaci(env, rlAnahtar);
       if (deneme >= GIRIS_SINIRI) {
-        return json({ error: 'too_many_attempts' }, 429, cors);
+        return json({ error: 'too_many_attempts' }, 429, CORS);
       }
 
       let govde;
-      try { govde = await request.json(); } catch { return json({ error: 'bad_json' }, 400, cors); }
+      try { govde = await request.json(); } catch { return json({ error: 'bad_json' }, 400, CORS); }
 
       const dogru = typeof govde?.password === 'string' &&
         await verifyPassword(govde.password, env.SIFRE_TUZU, env.SIFRE_OZETI);
 
       if (!dogru) {
         await env.STOK.put(rlAnahtar, String(deneme + 1), { expirationTtl: GIRIS_PENCERESI_SN });
-        return json({ error: 'invalid_password' }, 401, cors);
+        return json({ error: 'invalid_password' }, 401, CORS);
       }
 
       /* Basarili giris sayaci sifirlar: dogru sifreyi bilen kisi, once
@@ -1324,7 +1410,7 @@ başlayacak şekilde değiştir:
       return json({
         token: await signToken(exp, env.JETON_ANAHTARI),
         expiresAt: new Date(exp).toISOString()
-      }, 200, cors);
+      }, 200, CORS);
 ```
 
 - [ ] **Step 4: Testleri çalıştır, geçtiklerini gör**

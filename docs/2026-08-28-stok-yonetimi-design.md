@@ -153,8 +153,18 @@ zamanlı yapılır.
 **Oturum jetonu.** İçinde son kullanma tarihi olan, HMAC-SHA256 ile
 imzalanmış bir dize. Sunucuda oturum saklanmaz. Süre 90 gün.
 
-**Kaynak kısıtı.** Yazma isteklerinde `Origin` başlığı
-`https://cavuszadebruxelles.com` olmalı.
+**Kaynak kısıtı — yalnızca yazmada.** `POST` isteklerinde `Origin` başlığı
+izinli listede olmalı. Liste `IZINLI_KAYNAK` değişkeninde virgülle ayrılır;
+üretimde tek adres (`https://cavuszadebruxelles.com`), yerel geliştirmede
+`localhost` adresleri de eklenir.
+
+`GET /api/stock` **kısıtlanmaz.** Herkese açık, salt okunur, kimlik bilgisi
+taşımayan veri; kaynak kısıtı ona hiçbir şey katmaz — isteyen zaten `curl`
+ile alır — ama meşru kullanımı (örneğin yerel geliştirme) kırar. Tüm
+yanıtlarda `Access-Control-Allow-Origin: *` döner.
+
+Çerez kullanılmadığı, yetki `Authorization` başlığıyla taşındığı için `*`
+ile `Authorization` birlikte sorunsuz çalışır.
 
 > Dürüst sınır: CORS yalnızca tarayıcıyı bağlar, tarayıcı dışı istemciyi
 > engellemez. Asıl koruma jetondur. Kaynak kısıtı ikinci savunma hattıdır.
@@ -166,6 +176,20 @@ imzalanmış bir dize. Sunucuda oturum saklanmaz. Süre 90 gün.
 sisteminden gelmiyor. Bir stok düğmesi için kabul edilebilir. **Satış verisi
 bu panele girdiği gün bu bölüm yeniden ele alınmalıdır** — o noktada hazır
 bir kimlik sağlayıcı doğru tercih olur.
+
+## Bilinen sınır: eş zamanlı yazmada kayıp güncelleme
+
+Yazma işlemi oku-değiştir-yaz biçiminde ve **KV'de atomik karşılaştır-değiştir
+yok.** İki yazma gerçekten aynı anda gelirse ikincisi birincisinin üzerine
+yazabilir ve bir değişiklik sessizce kaybolabilir.
+
+Ölçüldü: dört eş zamanlı yazma denendi, kayıp olmadı. Ama bu bir garanti
+değil — yalnızca o koşulda gözlenen davranış.
+
+Pratikte tek kişi, saniyeler arayla düğmeye basıyor; çakışma olasılığı düşük.
+Sıkı garanti gerekirse Durable Objects'e geçmek gerekir, ki bu tehdit düzeyi
+için orantısız. **İkinci bir dükkân veya aynı anda çalışan ikinci bir personel
+eklendiğinde bu madde yeniden değerlendirilmeli.**
 
 ## Menü tarafı (`menu/index.html`)
 
