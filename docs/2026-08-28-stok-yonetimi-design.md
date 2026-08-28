@@ -177,6 +177,20 @@ sisteminden gelmiyor. Bir stok düğmesi için kabul edilebilir. **Satış veris
 bu panele girdiği gün bu bölüm yeniden ele alınmalıdır** — o noktada hazır
 bir kimlik sağlayıcı doğru tercih olur.
 
+## Bilinen sınır: eş zamanlı yazmada kayıp güncelleme
+
+Yazma işlemi oku-değiştir-yaz biçiminde ve **KV'de atomik karşılaştır-değiştir
+yok.** İki yazma gerçekten aynı anda gelirse ikincisi birincisinin üzerine
+yazabilir ve bir değişiklik sessizce kaybolabilir.
+
+Ölçüldü: dört eş zamanlı yazma denendi, kayıp olmadı. Ama bu bir garanti
+değil — yalnızca o koşulda gözlenen davranış.
+
+Pratikte tek kişi, saniyeler arayla düğmeye basıyor; çakışma olasılığı düşük.
+Sıkı garanti gerekirse Durable Objects'e geçmek gerekir, ki bu tehdit düzeyi
+için orantısız. **İkinci bir dükkân veya aynı anda çalışan ikinci bir personel
+eklendiğinde bu madde yeniden değerlendirilmeli.**
+
 ## Menü tarafı (`menu/index.html`)
 
 Sayfa açılışında stok çekilir. `AbortController` ile **2 saniye zaman aşımı**.
