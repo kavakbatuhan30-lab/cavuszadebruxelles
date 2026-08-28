@@ -553,6 +553,31 @@
     opacity:.8; letter-spacing:.5px; margin-left:1px;
   }
 
+  /* ---------- Tukendi ----------
+     Rozet her zaman DOM'da; yalnizca .out sinifi varken gorunur. Boylece
+     stok bilgisi gelince yeniden render etmek gerekmiyor -- sadece sinif
+     degisiyor, kartlarin giris animasyonu bastan baslamiyor.
+     Kart tiklanabilir kaliyor: musteri urunu yine de gorebilmeli. */
+  .soldout{display:none}
+  .card.out img{filter:grayscale(.7); opacity:.42; transform:none}
+  .card.out .price{opacity:.38; text-decoration:line-through}
+  .card.out .soldout{
+    display:inline-block; position:absolute; top:10px; left:50%;
+    transform:translateX(-50%); z-index:2;
+    background:rgba(59,30,8,.9); color:var(--cream);
+    font-family:'Lato',sans-serif; font-size:9.5px; font-weight:700;
+    letter-spacing:.14em; text-transform:uppercase;
+    padding:5px 11px; border-radius:2px; white-space:nowrap;
+  }
+  .drink.out .dn, .drink.out .dp{opacity:.42}
+  .drink.out .dp{text-decoration:line-through}
+  .drink.out .soldout{
+    display:inline-block; margin-left:7px;
+    font-family:'Lato',sans-serif; font-size:9px; font-weight:700;
+    letter-spacing:.1em; text-transform:uppercase;
+    color:var(--brown-mid); opacity:.75;
+  }
+
   /* ---------- Icecek listesi (fotografsiz) ---------- */
   .drinks{max-width:480px; margin:0 auto; padding:16px 18px 30px}
   /* flex-wrap sart: aciklama (.dd) flex-basis:100% ile alt satira insin */
@@ -948,28 +973,28 @@ const I18N = {
        noteKg:'Fiyatlar kilogram başınadır', notePc:'Fiyatlar adet başınadır',
        perKg:'/kg', contact:'İletişim',
        addr:'Adres', phone:'Telefon & WhatsApp', hours:'Çalışma Saatleri',
-       closed:'Kapalı',
+       closed:'Kapalı', soldOut:'Tükendi',
        days:['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'] },
   fr:{ label:'Français', code:'FR',
        baklava:'Baklava', drink:'Boissons',
        noteKg:'Prix au kilogramme', notePc:'Prix à l’unité',
        perKg:'/kg', contact:'Contact',
        addr:'Adresse', phone:'Téléphone & WhatsApp', hours:'Horaires',
-       closed:'Fermé',
+       closed:'Fermé', soldOut:'Épuisé',
        days:['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'] },
   nl:{ label:'Nederlands', code:'NL',
        baklava:'Baklava', drink:'Dranken',
        noteKg:'Prijzen per kilogram', notePc:'Prijs per stuk',
        perKg:'/kg', contact:'Contact',
        addr:'Adres', phone:'Telefoon & WhatsApp', hours:'Openingsuren',
-       closed:'Gesloten',
+       closed:'Gesloten', soldOut:'Uitverkocht',
        days:['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'] },
   en:{ label:'English', code:'EN',
        baklava:'Baklava', drink:'Drinks',
        noteKg:'Prices per kilogram', notePc:'Price per item',
        perKg:'/kg', contact:'Contact',
        addr:'Address', phone:'Phone & WhatsApp', hours:'Opening hours',
-       closed:'Closed',
+       closed:'Closed', soldOut:'Sold out',
        days:['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] },
 };
 
@@ -1022,6 +1047,41 @@ function renderSplash(){
   );
 }
 
+/* ---------- Stok ----------
+   Gelistirme sirasinda yerel Worker; Task 7'de gercek adresle degistirilir. */
+const STOCK_API = 'http://127.0.0.1:8787/api/stock';
+
+let OUT_OF_STOCK = new Set();
+
+/* Sinif degistirir, yeniden render etmez: kartlarin giris animasyonu
+   bastan baslamasin. */
+function applyStock(){
+  document.querySelectorAll('#gridBaklava .card').forEach(c =>
+    c.classList.toggle('out', OUT_OF_STOCK.has(c.dataset.id)));
+  document.querySelectorAll('#listDrink .drink').forEach(d =>
+    d.classList.toggle('out', OUT_OF_STOCK.has(d.dataset.id)));
+}
+
+/* Servise ulasilamazsa hicbir sey yapmaz -- her urun "var" kalir.
+   Gerekce: yanlis "tukendi" gostermek, yanlis "var" gostermekten pahali.
+   Musteri siparis vermez ve patron bunu fark etmez. */
+async function fetchStock(){
+  const ctl = new AbortController();
+  const zamanAsimi = setTimeout(() => ctl.abort(), 2000);
+  try{
+    const r = await fetch(STOCK_API, { signal: ctl.signal, cache: 'no-store' });
+    if(!r.ok) return;
+    const d = await r.json();
+    if(!Array.isArray(d.out)) return;
+    OUT_OF_STOCK = new Set(d.out);
+    applyStock();
+  }catch(e){
+    /* Aga ulasilamadi veya zaman asti: menu normal calismaya devam eder. */
+  }finally{
+    clearTimeout(zamanAsimi);
+  }
+}
+
 function renderMenu(){
   const t = I18N[lang];
   document.documentElement.lang = lang;
@@ -1036,7 +1096,7 @@ function renderMenu(){
   /* Baklava kartlari — sadece kilogram fiyati */
   $('gridBaklava').innerHTML = PRODUCTS.filter(p => p.cat === 'baklava').map((p,i) => `
     <article class="card" data-id="${p.id}" style="--i:${i}">
-      <div class="imgwrap"><img src="${p.img}" alt="${esc(p.name)}" ${i < 4 ? '' : 'loading="lazy"'} decoding="async"></div>
+      <div class="imgwrap"><img src="${p.img}" alt="${esc(p.name)}" ${i < 4 ? '' : 'loading="lazy"'} decoding="async"><span class="soldout">${esc(t.soldOut)}</span></div>
       <div class="body">
         <div class="name">${esc(p.name)}</div>
         <div class="desc">${esc(p.desc[lang])}</div>
@@ -1053,8 +1113,8 @@ function renderMenu(){
 
   /* Icecek satirlari — fotografsiz */
   $('listDrink').innerHTML = PRODUCTS.filter(p => p.cat === 'drink').map(p => `
-    <div class="drink">
-      <span class="dn">${esc(p.name)}</span>
+    <div class="drink" data-id="${p.id}">
+      <span class="dn">${esc(p.name)}<span class="soldout">${esc(t.soldOut)}</span></span>
       <span class="dots"></span>
       <span class="dp">${priceHtml(p)}</span>
       <span class="dd">${esc(p.desc[lang])}</span>
@@ -1070,6 +1130,8 @@ function renderMenu(){
       ? `<tr class="closed"><td>${d}</td><td>${t.closed}</td></tr>`
       : `<tr><td>${d}</td><td>12:00 – 21:00</td></tr>`
   ).join('');
+
+  applyStock();   /* dil degisiminde yeniden render sonrasi durumu koru */
 
   $('yr').textContent = new Date().getFullYear();
 }
@@ -1199,6 +1261,12 @@ function revealCards(){
   renderSplash();
   startRing();
   renderMenu();
+
+  fetchStock();
+  /* Musteri menuyu acik birakip geri donerse guncel listeyi gorsun. */
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') fetchStock();
+  });
 })();
 </script>
 </body>
