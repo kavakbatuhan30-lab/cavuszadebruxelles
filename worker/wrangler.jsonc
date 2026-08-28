@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cavuszade-stok",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-28",
+
+  // Uretim degeri. Yerel gelistirmede .dev.vars bunu gecersiz kilar.
+  // Virgulle ayrilmis liste kabul eder; yazma isteklerinde Origin denetimi
+  // bu listeye gore yapilir.
+  "vars": {
+    "IZINLI_KAYNAK": "https://cavuszadebruxelles.com"
+  },
+
+  "kv_namespaces": [
+    { "binding": "STOK", "id": "b2ab4262fb6943f194bae02c91b830e9" }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
+}

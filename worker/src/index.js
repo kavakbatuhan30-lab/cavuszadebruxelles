@@ -46,6 +46,14 @@ async function kayitOku(env, bugun) {
   return normalizeRecord(await env.STOK.get(ANAHTAR, 'json'), bugun);
 }
 
+/* Gizli degerler konulmadan dagitim yapilabiliyor. O durumda kripto
+   cagrilari istisna firlatir ve Worker 500 doner -- uretimde yasandi.
+   Okuma yolu bunlara ihtiyac duymadigi icin menu calismaya devam eder;
+   yalnizca yonetim uc noktalari kapanir. */
+function yapilandirmaEksik(env, ...gerekli) {
+  return gerekli.some(ad => !env[ad]);
+}
+
 /* IP basina giris denemesi sayaci.
 
    KV anlik tutarli degildir: es zamanli isteklerde sayac birkac deneme
@@ -77,6 +85,9 @@ export default {
 
     if (url.pathname === '/api/login' && request.method === 'POST') {
       if (!kaynakUygun(request, env)) return json({ error: 'forbidden_origin' }, 403, CORS);
+      if (yapilandirmaEksik(env, 'SIFRE_OZETI', 'SIFRE_TUZU', 'JETON_ANAHTARI')) {
+        return json({ error: 'not_configured' }, 503, CORS);
+      }
 
       const rlAnahtar = girisAnahtari(request);
       const deneme = await girisSayaci(env, rlAnahtar);
@@ -108,6 +119,9 @@ export default {
 
     if (url.pathname === '/api/stock' && request.method === 'POST') {
       if (!kaynakUygun(request, env)) return json({ error: 'forbidden_origin' }, 403, CORS);
+      if (yapilandirmaEksik(env, 'JETON_ANAHTARI')) {
+        return json({ error: 'not_configured' }, 503, CORS);
+      }
 
       const yetki = request.headers.get('Authorization') ?? '';
       const jeton = yetki.startsWith('Bearer ') ? yetki.slice(7) : null;

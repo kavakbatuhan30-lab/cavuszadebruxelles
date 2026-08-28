@@ -5,3 +5,4 @@ animo-showcase-stream-720p.mp4
 worker/.dev.vars
 worker/node_modules/
 worker/.wrangler/
+worker/.gizli-gecici.json

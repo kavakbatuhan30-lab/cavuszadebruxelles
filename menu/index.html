@@ -1048,8 +1048,9 @@ function renderSplash(){
 }
 
 /* ---------- Stok ----------
-   Gelistirme sirasinda yerel Worker; Task 7'de gercek adresle degistirilir. */
-const STOCK_API = 'http://127.0.0.1:8787/api/stock';
+   Uretim Worker'i. Yerelde gelistirirken 'http://127.0.0.1:8787/api/stock'
+   yapilabilir; Worker kapaliysa menu zaten sorunsuz calisir. */
+const STOCK_API = 'https://cavuszade-stok.cavuszade-stok.workers.dev/api/stock';
 
 let OUT_OF_STOCK = new Set();
 

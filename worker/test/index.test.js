@@ -162,6 +162,37 @@ describe('POST /api/stock', () => {
   });
 });
 
+describe('eksik yapilandirma', () => {
+  /* Gizli degerler konulmadan dagitim yapilirsa Worker istisna firlatip 500
+     vermemeli. Uretimde gercekten yasandi: sifre ozeti yokken /api/login
+     "error code 1101" dondu. */
+  it('gizli degerler yokken giris 503 doner, cokmez', async () => {
+    delete env.SIFRE_OZETI;
+    delete env.SIFRE_TUZU;
+    const r = await worker.fetch(istek('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': 'https://cavuszadebruxelles.com' },
+      body: JSON.stringify({ password: 'herhangibirsey' })
+    }), env);
+    expect(r.status).toBe(503);
+    expect((await r.json()).error).toBe('not_configured');
+  });
+
+  it('jeton anahtari yokken yazma 503 doner, cokmez', async () => {
+    delete env.JETON_ANAHTARI;
+    const r = await worker.fetch(yazmaIstegi({ id: 'sarma', inStock: false }, 'herhangi.jeton'), env);
+    expect(r.status).toBe(503);
+  });
+
+  it('gizli degerler yokken okuma calismaya devam eder', async () => {
+    delete env.SIFRE_OZETI;
+    delete env.SIFRE_TUZU;
+    delete env.JETON_ANAHTARI;
+    const r = await worker.fetch(istek('/api/stock'), env);
+    expect(r.status).toBe(200);
+  });
+});
+
 describe('CORS', () => {
   it('GET her kaynaga acik', async () => {
     const r = await worker.fetch(istek('/api/stock', {
