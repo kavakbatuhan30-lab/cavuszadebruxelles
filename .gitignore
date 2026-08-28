@@ -1,2 +1,7 @@
 # Large source video kept locally only — too big for the repo (83 MB).
 animo-showcase-stream-720p.mp4
+
+# Yerel Worker gelistirme degerleri -- gercek sirlar buraya girmemeli
+worker/.dev.vars
+worker/node_modules/
+worker/.wrangler/

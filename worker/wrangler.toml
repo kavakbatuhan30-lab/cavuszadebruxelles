@@ -1,0 +1,11 @@
+name = "cavuszade-stok"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+# Uretim degeri. Yerel gelistirmede .dev.vars bunu gecersiz kilar.
+[vars]
+IZINLI_KAYNAK = "https://cavuszadebruxelles.com"
+
+[[kv_namespaces]]
+binding = "STOK"
+id = "task-7-de-gercek-kimlikle-degistirilecek"
