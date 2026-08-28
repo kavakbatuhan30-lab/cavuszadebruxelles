@@ -153,8 +153,18 @@ zamanlı yapılır.
 **Oturum jetonu.** İçinde son kullanma tarihi olan, HMAC-SHA256 ile
 imzalanmış bir dize. Sunucuda oturum saklanmaz. Süre 90 gün.
 
-**Kaynak kısıtı.** Yazma isteklerinde `Origin` başlığı
-`https://cavuszadebruxelles.com` olmalı.
+**Kaynak kısıtı — yalnızca yazmada.** `POST` isteklerinde `Origin` başlığı
+izinli listede olmalı. Liste `IZINLI_KAYNAK` değişkeninde virgülle ayrılır;
+üretimde tek adres (`https://cavuszadebruxelles.com`), yerel geliştirmede
+`localhost` adresleri de eklenir.
+
+`GET /api/stock` **kısıtlanmaz.** Herkese açık, salt okunur, kimlik bilgisi
+taşımayan veri; kaynak kısıtı ona hiçbir şey katmaz — isteyen zaten `curl`
+ile alır — ama meşru kullanımı (örneğin yerel geliştirme) kırar. Tüm
+yanıtlarda `Access-Control-Allow-Origin: *` döner.
+
+Çerez kullanılmadığı, yetki `Authorization` başlığıyla taşındığı için `*`
+ile `Authorization` birlikte sorunsuz çalışır.
 
 > Dürüst sınır: CORS yalnızca tarayıcıyı bağlar, tarayıcı dışı istemciyi
 > engellemez. Asıl koruma jetondur. Kaynak kısıtı ikinci savunma hattıdır.
