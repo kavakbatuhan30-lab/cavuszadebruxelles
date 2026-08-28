@@ -193,6 +193,55 @@ describe('CORS', () => {
   });
 });
 
+describe('giris denemesi siniri', () => {
+  const girisDene = (sifre, ip = '203.0.113.9') => worker.fetch(istek('/api/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Origin': 'https://cavuszadebruxelles.com',
+      'CF-Connecting-IP': ip
+    },
+    body: JSON.stringify({ password: sifre })
+  }), env);
+
+  const yanlisGiris = () => girisDene('yanlis');
+
+  it('10 denemeye kadar 401 doner', async () => {
+    for (let i = 0; i < 10; i++) {
+      expect((await yanlisGiris()).status).toBe(401);
+    }
+  });
+
+  it('11. denemede 429 doner', async () => {
+    for (let i = 0; i < 10; i++) await yanlisGiris();
+    expect((await yanlisGiris()).status).toBe(429);
+  });
+
+  it('sinira takilinca sifreyi hic kontrol etmez', async () => {
+    for (let i = 0; i < 11; i++) await yanlisGiris();
+    // Dogru sifreyle bile 429: sayac IP bazli, sifreden bagimsiz.
+    expect((await girisDene(SIFRE)).status).toBe(429);
+  });
+
+  it('baska IP etkilenmez', async () => {
+    for (let i = 0; i < 11; i++) await yanlisGiris();
+    expect((await girisDene(SIFRE, '198.51.100.4')).status).toBe(200);
+  });
+
+  it('basarili giris sayaci sifirlar', async () => {
+    for (let i = 0; i < 5; i++) await yanlisGiris();
+    await girisDene(SIFRE);
+    for (let i = 0; i < 10; i++) {
+      expect((await yanlisGiris()).status).toBe(401);
+    }
+  });
+
+  it('sayaca son kullanma suresi konur', async () => {
+    await yanlisGiris();
+    expect(env.STOK._depo.get('rl:login:203.0.113.9:ttl')).toBe(15 * 60);
+  });
+});
+
 describe('bilinmeyen yol', () => {
   it('404 doner', async () => {
     expect((await worker.fetch(istek('/olmayan'), env)).status).toBe(404);

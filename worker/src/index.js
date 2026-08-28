@@ -3,6 +3,8 @@ import { verifyPassword, signToken, verifyToken } from './auth.js';
 
 const ANAHTAR = 'shop:cavuszade:stock';   /* onek ileriye donuk: ikinci dukkan yeni anahtar */
 const JETON_OMRU_MS = 90 * 24 * 60 * 60 * 1000;
+const GIRIS_SINIRI = 10;
+const GIRIS_PENCERESI_SN = 15 * 60;
 
 /* CORS her yanitta aciktir.
 
@@ -44,6 +46,22 @@ async function kayitOku(env, bugun) {
   return normalizeRecord(await env.STOK.get(ANAHTAR, 'json'), bugun);
 }
 
+/* IP basina giris denemesi sayaci.
+
+   KV anlik tutarli degildir: es zamanli isteklerde sayac birkac deneme
+   kacirabilir. Bu bir kesinlik araci degil, yavaslatici. Amac kaba kuvveti
+   ve PBKDF2 uzerinden CPU tuketmeyi pahali hale getirmek -- her deneme
+   ~100 ms CPU yaktigi icin sinirsiz deneme ayni zamanda bir CPU saldirisi. */
+function girisAnahtari(request) {
+  const ip = request.headers.get('CF-Connecting-IP') ?? 'bilinmeyen';
+  return `rl:login:${ip}`;
+}
+
+async function girisSayaci(env, anahtar) {
+  const v = await env.STOK.get(anahtar);
+  return v ? parseInt(v, 10) || 0 : 0;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -60,12 +78,26 @@ export default {
     if (url.pathname === '/api/login' && request.method === 'POST') {
       if (!kaynakUygun(request, env)) return json({ error: 'forbidden_origin' }, 403, CORS);
 
+      const rlAnahtar = girisAnahtari(request);
+      const deneme = await girisSayaci(env, rlAnahtar);
+      if (deneme >= GIRIS_SINIRI) {
+        return json({ error: 'too_many_attempts' }, 429, CORS);
+      }
+
       let govde;
       try { govde = await request.json(); } catch { return json({ error: 'bad_json' }, 400, CORS); }
 
       const dogru = typeof govde?.password === 'string' &&
         await verifyPassword(govde.password, env.SIFRE_TUZU, env.SIFRE_OZETI);
-      if (!dogru) return json({ error: 'invalid_password' }, 401, CORS);
+
+      if (!dogru) {
+        await env.STOK.put(rlAnahtar, String(deneme + 1), { expirationTtl: GIRIS_PENCERESI_SN });
+        return json({ error: 'invalid_password' }, 401, CORS);
+      }
+
+      /* Basarili giris sayaci sifirlar: dogru sifreyi bilen kisi, once
+         birkac kez yanlis yazdi diye kilitlenmemeli. */
+      await env.STOK.put(rlAnahtar, '0', { expirationTtl: GIRIS_PENCERESI_SN });
 
       const exp = Date.now() + JETON_OMRU_MS;
       return json({
