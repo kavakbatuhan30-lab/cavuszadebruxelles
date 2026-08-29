@@ -1,6 +1,6 @@
 # Çavuşzade Baklava Menüsü — Proje Durumu
 
-**Son güncelleme:** 2026-08-22
+**Son güncelleme:** 2026-08-29
 **Amacı:** Başka bir bilgisayarda çalışmaya devam edecek olan için durum özeti.
 Buradaki her madde dosyalardan okunarak doğrulandı, hafızadan yazılmadı.
 
@@ -27,9 +27,16 @@ cavuszade/
 │       ├── ring.mp4                  387 KB, dönen baklava animasyonu
 │       ├── ring-poster.webp          10,6 KB, animasyonun ilk karesi
 │       └── *.webp                    8 ürün fotoğrafı + logo
+├── admin/index.html                  stok yönetim paneli
+├── worker/                           Cloudflare Worker (stok servisi)
+│   ├── src/{stock,auth,index}.js
+│   ├── test/                         51 test
+│   ├── scripts/sifre-kur.mjs         panel şifresini kurar
+│   └── wrangler.jsonc
 ├── docs/
-│   ├── halka-animasyonu-notlari.md   ⚠️ ÖNCE BUNU OKU — ölçümler, denenip
-│   │                                 bırakılan sürümler ve nedenleri
+│   ├── halka-animasyonu-notlari.md   ⚠️ animasyona dokunacaksan ÖNCE BUNU OKU
+│   ├── 2026-08-28-stok-yonetimi-design.md   stok tasarımı + gerekçeler
+│   ├── 2026-08-28-stok-yonetimi-plan.md     uygulama planı
 │   └── 2026-08-04-qr-menu-design.md  ilk tasarım kararları
 ├── index.html                        ana site (menü değil)
 ├── imgcavuszade/                     ana sitenin görselleri
@@ -117,6 +124,50 @@ eğik çizgi dahil — 301 yönlendirmesini atlar).
 
 ---
 
+---
+
+## Stok yönetimi (2026-08-28'de yayına alındı)
+
+Dükkân sahibi `cavuszadebruxelles.com/admin/` adresinden bir ürünü kapatınca,
+menüyü yeni açan müşteri onu "Tükendi" görüyor.
+
+**Mimari:** Cloudflare Worker + KV. Menü sayfa açılışında stok bilgisini
+çekiyor; sekme öne gelince tazeliyor.
+
+| | |
+|---|---|
+| Worker | `cavuszade-stok.cavuszade-stok.workers.dev` |
+| KV alanı | `b2ab4262fb6943f194bae02c91b830e9`, anahtar `shop:cavuszade:stock` |
+| Gizli değerler | `SIFRE_TUZU`, `SIFRE_OZETI`, `JETON_ANAHTARI` (Cloudflare'da) |
+| Testler | 51, `cd worker && npm test` |
+
+### Bilmen gereken üç tasarım kararı
+
+**Menü fail-open çalışır.** Stok servisine ulaşılamazsa her ürün "var"
+görünür ve menü normal açılır. Yanlış "tükendi" göstermek, yanlış "var"
+göstermekten pahalı: müşteri sipariş vermez, patron da fark etmez.
+
+**Günlük sıfırlama zamanlayıcısız.** Kayıttaki Brüksel takvim günü bugünden
+eskiyse liste boş kabul edilir. Cloudflare cron'u UTC çalıştığı için sabit
+saatli kurulum yaz saatinde bir saat kayardı. 2026-08-29 gecesi canlıda
+kendiliğinden çalıştığı doğrulandı.
+
+**Yazma yolunda önce sıfırlama, sonra değişiklik.** Ters sırada dünün
+tükenmiş ürünleri bugüne taşınır ve bu ekranda hemen görünmez. Test var.
+
+### Ürün listesi iki yerde
+
+`menu/index.html` içindeki `PRODUCTS` ile `admin/index.html` içindeki
+`URUNLER` kimlikleri **birebir eşleşmeli**. Ürün eklenirse ikisi de
+güncellenmeli. Bilinçli ödün; fiyat düzenleme panele alınınca kalkar.
+
+### Şifre
+
+`worker/scripts/sifre-kur.mjs` çalıştırılıp `wrangler secret bulk` ile
+yüklenir. Şifre hiçbir yere kaydedilmez — unutulursa yenisi konur.
+
+---
+
 ## Açık işler
 
 ### ⚪ Masaya koyma
@@ -124,13 +175,29 @@ eğik çizgi dahil — 301 yönlendirmesini atlar).
 QR basılıp masalara yerleştirilecek. Basımdan sonra birkaç farklı telefonla
 (iOS + Android) gerçek masa ışığında taranıp test edilmesi iyi olur.
 
+### ⚪ Sonraki büyük adım: sertifikalı kasadan veri çekmek
+
+Kullanıcı bu sistemi aylık 50 €'ya satmak istiyor ve satış/KDV modülü
+planlıyor. **Belçika'da GKS / witte kassa zorunluluğu var** — sertifikasız
+bir satış kaydı sistemi müşteriye ceza yazdırabilir. Ayrıca içecekler masada
+%21 (kullanıcının varsaydığı %12 değil).
+
+Doğru yön: kasayı taklit etmek yerine sertifikalı kasadan veri çekip üstüne
+analitik koymak. Detay `docs/2026-08-28-stok-yonetimi-design.md` içinde
+"Kapsam dışı" başlığında.
+
+### ⚪ Eş zamanlı yazmada kayıp güncelleme riski
+
+KV'de atomik güncelleme yok. Tek kişi kullanırken sorun değil; **ikinci bir
+personel aynı anda çalışmaya başlarsa** Durable Objects'e geçmek gerekir.
+
 ## Yeni bir oturuma başlarken
 
 ```bash
 git log --oneline -15
-git status
+cd worker && npm test
 ```
 
-Sonra `docs/halka-animasyonu-notlari.md` dosyasını oku — animasyonla ilgili
-her karar ve ölçüm orada. Aynı çıkmaz sokaklara tekrar girmemek için
-"denendi, olmadı" bölümleri özellikle önemli.
+Animasyona dokunacaksan `docs/halka-animasyonu-notlari.md`, stoğa
+dokunacaksan `docs/2026-08-28-stok-yonetimi-design.md` oku. İkisinde de
+"denendi, olmadı" bölümleri var — aynı çıkmaz sokaklara tekrar girmemek için.
