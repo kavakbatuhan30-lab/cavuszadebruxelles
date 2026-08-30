@@ -1,5 +1,9 @@
 import { brusselsDate, normalizeRecord, applyToggle, isValidId, MAX_OUT } from './stock.js';
 import { verifyPassword, signToken, verifyToken } from './auth.js';
+import {
+  DILIM_PER_KG, MAX_META, gecerliAy, gecerliSiparis, siparisAnahtari,
+  ayOneki, anahtardanTarih, meta, metaBoyutu, metadanSatirlar, aylar, topla
+} from './sales.js';
 
 const ANAHTAR = 'shop:cavuszade:stock';   /* onek ileriye donuk: ikinci dukkan yeni anahtar */
 const JETON_OMRU_MS = 90 * 24 * 60 * 60 * 1000;
@@ -70,6 +74,37 @@ async function girisSayaci(env, anahtar) {
   return v ? parseInt(v, 10) || 0 : 0;
 }
 
+async function jetonGecerli(request, env) {
+  const yetki = request.headers.get('Authorization') ?? '';
+  const jeton = yetki.startsWith('Bearer ') ? yetki.slice(7) : null;
+  return verifyToken(jeton, env.JETON_ANAHTARI, Date.now());
+}
+
+/* Bir ayin butun siparislerini okur.
+
+   Yalnizca list() cagirir, siparis basina get() CAGIRMAZ. Satirlar
+   anahtarin metadata'sinda durdugu icin buna gerek yok. Onemli: Workers'ta
+   istek basina alt istek sayisi sinirlidir; siparis basina bir get() ayda
+   birkac yuz siparisten sonra raporu tamamen calismaz hale getirirdi. */
+const SAYFA_SINIRI = 20;   /* 20 x 1000 anahtar; bir ayda buna asla varilmaz */
+
+async function ayKayitlari(env, ay) {
+  const onek = ayOneki(ay);
+  const kayitlar = [];
+  let cursor;
+  for (let sayfa = 0; sayfa < SAYFA_SINIRI; sayfa++) {
+    const r = await env.STOK.list({ prefix: onek, cursor });
+    for (const k of r.keys) {
+      const tarih = anahtardanTarih(k.name);
+      if (tarih) kayitlar.push({ tarih, satirlar: metadanSatirlar(k.metadata) });
+    }
+    if (r.list_complete) break;
+    cursor = r.cursor;
+    if (!cursor) break;
+  }
+  return kayitlar;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -123,9 +158,7 @@ export default {
         return json({ error: 'not_configured' }, 503, CORS);
       }
 
-      const yetki = request.headers.get('Authorization') ?? '';
-      const jeton = yetki.startsWith('Bearer ') ? yetki.slice(7) : null;
-      if (!await verifyToken(jeton, env.JETON_ANAHTARI, Date.now())) {
+      if (!await jetonGecerli(request, env)) {
         return json({ error: 'invalid_token' }, 401, CORS);
       }
 
@@ -147,6 +180,79 @@ export default {
       const yeni = applyToggle(mevcut, govde.id, govde.inStock, new Date().toISOString());
       await env.STOK.put(ANAHTAR, JSON.stringify(yeni));
       return json(yeni, 200, CORS);
+    }
+
+    /* ---- Siparis defteri ------------------------------------------------
+       Stogun aksine bu uc noktalar HERKESE ACIK DEGIL: satis miktari
+       isletmenin ic verisi, menude gosterilmiyor. Ikisi de jeton ister ve
+       tarayici tarafinda ayrica kaynak denetiminden gecer. */
+
+    if (url.pathname === '/api/sales' && request.method === 'POST') {
+      if (!kaynakUygun(request, env)) return json({ error: 'forbidden_origin' }, 403, CORS);
+      if (yapilandirmaEksik(env, 'JETON_ANAHTARI')) {
+        return json({ error: 'not_configured' }, 503, CORS);
+      }
+      if (!await jetonGecerli(request, env)) {
+        return json({ error: 'invalid_token' }, 401, CORS);
+      }
+
+      let govde;
+      try { govde = await request.json(); } catch { return json({ error: 'bad_json' }, 400, CORS); }
+
+      const hata = gecerliSiparis(govde?.satirlar);
+      if (hata) return json({ error: hata }, 400, CORS);
+
+      const ust = meta(govde.satirlar);
+      if (metaBoyutu(ust) > MAX_META) return json({ error: 'siparis_cok_buyuk' }, 400, CORS);
+
+      /* Her siparis KENDI anahtarina yazilir: oku-degistir-yaz yok, yani iki
+         tezgahtar ayni anda kaydetse bile siparis kaybolmaz. Stok tarafinda
+         acik is olarak duran kayip guncelleme riski burada dogmuyor. */
+      const simdi = new Date();
+      const tarih = brusselsDate(simdi);
+      const anahtar = siparisAnahtari(
+        tarih, simdi.getTime(), crypto.randomUUID().slice(0, 8)
+      );
+
+      await env.STOK.put(
+        anahtar,
+        JSON.stringify({ tarih, ts: simdi.toISOString(), satirlar: govde.satirlar }),
+        { metadata: ust }
+      );
+
+      return json({ ok: true, anahtar, tarih, satirlar: govde.satirlar }, 200, CORS);
+    }
+
+    if (url.pathname === '/api/sales' && request.method === 'GET') {
+      if (!kaynakUygun(request, env)) return json({ error: 'forbidden_origin' }, 403, CORS);
+      if (yapilandirmaEksik(env, 'JETON_ANAHTARI')) {
+        return json({ error: 'not_configured' }, 503, CORS);
+      }
+      if (!await jetonGecerli(request, env)) {
+        return json({ error: 'invalid_token' }, 401, CORS);
+      }
+
+      /* dilimPerKg her iki yanitta da doner: cevrim tablosunun tek kaynagi
+         worker, panel kendi kopyasini tutmasin diye. */
+      const from = url.searchParams.get('from');
+      const to = url.searchParams.get('to');
+
+      if (from || to) {
+        const liste = aylar(from, to);
+        if (liste.length === 0) return json({ error: 'gecersiz_aralik' }, 400, CORS);
+        const sonuc = [];
+        for (const ay of liste) {
+          const { siparis, toplam } = topla(await ayKayitlari(env, ay));
+          sonuc.push({ ay, siparis, toplam });
+        }
+        return json({ aylar: sonuc, dilimPerKg: DILIM_PER_KG }, 200, CORS);
+      }
+
+      const ay = url.searchParams.get('month') ?? brusselsDate().slice(0, 7);
+      if (!gecerliAy(ay)) return json({ error: 'gecersiz_ay' }, 400, CORS);
+
+      const { siparis, toplam, gunler } = topla(await ayKayitlari(env, ay));
+      return json({ ay, siparis, toplam, gunler, dilimPerKg: DILIM_PER_KG }, 200, CORS);
     }
 
     return json({ error: 'not_found' }, 404, CORS);

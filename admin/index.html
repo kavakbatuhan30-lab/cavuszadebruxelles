@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>Çavuşzade — Stok</title>
+<title>Çavuşzade — Tezgâh</title>
 <style>
   *{box-sizing:border-box; margin:0; padding:0}
   body{
     font-family:system-ui, -apple-system, sans-serif;
     background:#F0E8D7; color:#3B1E08;
-    padding:20px; max-width:520px; margin:0 auto;
+    padding:20px 20px 96px; max-width:520px; margin:0 auto;
   }
   h1{font-size:19px; margin-bottom:4px}
   .alt{font-size:13px; opacity:.65; margin-bottom:20px}
@@ -34,12 +34,63 @@
   .hata{color:#B71C1C; font-size:13px; margin-top:10px; min-height:18px}
   .durum{font-size:12px; opacity:.6; margin-top:16px}
   .gizli{display:none}
+
+  /* ---- sekmeler ---- */
+  .sekmeler{display:flex; gap:6px; margin-bottom:18px}
+  .sekmeler button{
+    flex:1; min-width:0; background:#E2D5BB; color:#3B1E08; padding:11px 8px;
+  }
+  .sekmeler button.etkin{background:#3B1E08; color:#F0E8D7}
+  .baglanti{
+    display:block; text-align:center; font-size:13px; font-weight:600;
+    color:#7A5220; text-decoration:none; padding:12px; margin-top:18px;
+    border:1px dashed #C9A84C; border-radius:8px;
+  }
+
+  /* ---- siparis girisi ---- */
+  .urun{background:#fff; border-radius:9px; padding:12px 14px; margin-bottom:9px}
+  .urun.dolu{box-shadow:inset 3px 0 0 #2E7D32}
+  .urunUst{display:flex; align-items:baseline; justify-content:space-between; gap:10px}
+  .urunAd{font-size:15px; font-weight:600}
+  .sepetOzet{font-size:12px; color:#2E7D32; font-weight:600; white-space:nowrap}
+  .urunAlt{display:flex; align-items:center; gap:8px; margin-top:10px}
+  .sayac{display:flex; align-items:center; gap:6px}
+  .sayac button{
+    min-width:44px; width:44px; height:40px; padding:0; font-size:20px; line-height:1;
+    background:#E2D5BB; color:#3B1E08;
+  }
+  .sayac button.arti{background:#3B1E08; color:#F0E8D7}
+  .sayacDeger{min-width:58px; text-align:center; font-size:14px; font-variant-numeric:tabular-nums}
+  .kgKutu{margin-left:auto; display:flex; align-items:center; gap:6px}
+  .kgKutu input{width:78px; margin:0; padding:9px 10px; text-align:right}
+  .kgKutu label{font-size:13px; opacity:.7}
+  .cevrim{font-size:11px; opacity:.6; margin-top:6px; min-height:14px}
+  .cevrim.uyari{color:#8A5A00; opacity:1}
+
+  .altBar{
+    position:fixed; left:0; right:0; bottom:0; background:#3B1E08; color:#F0E8D7;
+    padding:12px 16px; display:flex; align-items:center; gap:12px;
+    max-width:520px; margin:0 auto;
+  }
+  .altBar .say{font-size:13px; flex:1; line-height:1.35}
+  .altBar button{background:#C9A84C; color:#2A1505}
+  .altBar button.bosalt{background:transparent; color:#C9A84C; min-width:auto; padding:9px 6px}
+  .altBar.gizli{display:none}
+
+  .gunluk{background:#fff; border-radius:9px; padding:12px 14px; margin-bottom:14px}
+  .gunluk h2{font-size:13px; margin-bottom:8px; opacity:.7; font-weight:600}
+  .gunlukSatir{
+    display:flex; justify-content:space-between; font-size:13px;
+    padding:4px 0; border-bottom:1px solid #F0E8D7;
+  }
+  .gunlukSatir:last-child{border-bottom:0}
+  .bos{font-size:13px; opacity:.55}
 </style>
 </head>
 <body>
 
 <div id="girisEkrani">
-  <h1>Stok yönetimi</h1>
+  <h1>Tezgâh paneli</h1>
   <p class="alt">Devam etmek için şifreyi gir.</p>
   <input type="password" id="sifre" placeholder="Şifre" autocomplete="current-password">
   <button class="var" id="girisBtn" style="width:100%">Giriş</button>
@@ -47,33 +98,84 @@
 </div>
 
 <div id="panel" class="gizli">
-  <h1>Stok yönetimi</h1>
-  <p class="alt">Tükenen ürünü kapat — menüde anında görünür.</p>
-  <div id="liste"></div>
-  <div class="durum" id="durum"></div>
+  <div class="sekmeler">
+    <button id="sekmeSiparis" class="etkin">Sipariş</button>
+    <button id="sekmeStok">Stok</button>
+  </div>
+
+  <!-- ---------------- SIPARIS ---------------- -->
+  <section id="siparisBolum">
+    <h1>Sipariş girişi</h1>
+    <p class="alt">
+      Dilim için <strong>+</strong>, kiloyla satarken <strong>kg</strong> kutusunu kullan.
+      İkisi aynı üründe birlikte de girilebilir.
+    </p>
+
+    <div class="gunluk">
+      <h2>Bu oturumda kaydedilenler</h2>
+      <div id="oturumListe"><span class="bos">Henüz sipariş kaydedilmedi.</span></div>
+    </div>
+
+    <div id="urunListe"></div>
+    <div class="durum" id="siparisDurum"></div>
+    <a class="baglanti" href="rapor.html">Ay sonu raporu ve grafikler →</a>
+  </section>
+
+  <!-- ---------------- STOK ---------------- -->
+  <section id="stokBolum" class="gizli">
+    <h1>Stok yönetimi</h1>
+    <p class="alt">Tükenen ürünü kapat — menüde anında görünür.</p>
+    <div id="liste"></div>
+    <div class="durum" id="durum"></div>
+  </section>
+</div>
+
+<div class="altBar gizli" id="altBar">
+  <span class="say" id="sepetSay"></span>
+  <button class="bosalt" id="bosaltBtn">Temizle</button>
+  <button id="kaydetBtn">Kaydet</button>
 </div>
 
 <script>
 /* Uretim Worker'i. Yerelde gelistirirken 'http://127.0.0.1:8787' yapilabilir. */
 const API = 'https://cavuszade-stok.cavuszade-stok.workers.dev';
 
-/* Menudeki PRODUCTS kimlikleriyle birebir ayni olmali. */
+/* Menudeki PRODUCTS ve worker'daki DILIM_PER_KG kimlikleriyle birebir ayni
+   olmali. 'tur' burada satis birimini belirler: baklava dilim/kilo, icecek
+   adet. Urun eklenirse ucu de guncellenmeli. */
 const URUNLER = [
-  { id:'fistik',       ad:'Fıstıklı Baklava' },
-  { id:'sarma',        ad:'Fıstık Sarma' },
-  { id:'havucdilim',   ad:'Havuç Dilim' },
-  { id:'bohca',        ad:'Fıstıklı Bohça' },
-  { id:'sobiyet',      ad:'Şöbiyet' },
-  { id:'sogukbaklava', ad:'Soğuk Baklava' },
-  { id:'kadayif',      ad:'Fıstıklı Kadayıf' },
-  { id:'ceviz',        ad:'Cevizli Baklava' },
-  { id:'su',           ad:'Su' },
-  { id:'soda',         ad:'Meyveli Soda' }
+  { id:'fistik',       ad:'Fıstıklı Baklava', tur:'baklava' },
+  { id:'sarma',        ad:'Fıstık Sarma',     tur:'baklava' },
+  { id:'havucdilim',   ad:'Havuç Dilim',      tur:'baklava' },
+  { id:'bohca',        ad:'Fıstıklı Bohça',   tur:'baklava' },
+  { id:'sobiyet',      ad:'Şöbiyet',          tur:'baklava' },
+  { id:'sogukbaklava', ad:'Soğuk Baklava',    tur:'baklava' },
+  { id:'kadayif',      ad:'Fıstıklı Kadayıf', tur:'baklava' },
+  { id:'ceviz',        ad:'Cevizli Baklava',  tur:'baklava' },
+  { id:'su',           ad:'Su',               tur:'icecek' },
+  { id:'soda',         ad:'Meyveli Soda',     tur:'icecek' }
 ];
+
+const AD = Object.fromEntries(URUNLER.map(u => [u.id, u.ad]));
 
 const $ = id => document.getElementById(id);
 let jeton = localStorage.getItem('stokJetonu');
 let tukenenler = new Set();
+
+/* Kilo -> dilim katsayilari worker'dan gelir; panel kendi kopyasini
+   TUTMAZ. Gelmezse yalnizca ekrandaki "yaklasik su kadar dilim" ipucu
+   kaybolur, siparis girisi calismaya devam eder. */
+let dilimPerKg = {};
+
+/* sepet[id] = { dilim, kg } (baklava) | { adet } (icecek) */
+let sepet = {};
+/* Bu oturumda basariyla kaydedilenler. Yalnizca ekranda geri bildirim
+   icin; dogru kaynak her zaman worker'daki kayittir. KV anlik tutarli
+   olmadigi icin yeni kaydedilen siparis raporda birkac saniye gecikebilir --
+   tezgahtarin "kaydoldu mu?" diye tereddut etmemesi bu listeyle saglaniyor. */
+let oturumKayitlari = [];
+
+/* ================= giris ================= */
 
 async function girisYap(){
   const btn = $('girisBtn');
@@ -106,16 +208,226 @@ async function girisYap(){
 async function panelAc(){
   $('girisEkrani').classList.add('gizli');
   $('panel').classList.remove('gizli');
-  await durumYukle();
+  siparisCiz();
+  await Promise.all([durumYukle(), cevrimYukle()]);
 }
 
 function girisEkraninaDon(mesaj){
   localStorage.removeItem('stokJetonu');
   jeton = null;
   $('panel').classList.add('gizli');
+  $('altBar').classList.add('gizli');
   $('girisEkrani').classList.remove('gizli');
   $('girisHata').textContent = mesaj;
 }
+
+/* ================= sekmeler ================= */
+
+function sekmeSec(hangi){
+  const siparis = hangi === 'siparis';
+  $('sekmeSiparis').classList.toggle('etkin', siparis);
+  $('sekmeStok').classList.toggle('etkin', !siparis);
+  $('siparisBolum').classList.toggle('gizli', !siparis);
+  $('stokBolum').classList.toggle('gizli', siparis);
+  altBarTazele();
+}
+
+/* ================= siparis girisi ================= */
+
+/* Cevrim tablosunu almak icin icinde bulunulan ayin raporu cekiliyor;
+   ayri bir uc nokta acmaya deger bulunmadi. */
+async function cevrimYukle(){
+  try{
+    const r = await fetch(API + '/api/sales', {
+      headers:{ 'Authorization':'Bearer ' + jeton }, cache:'no-store'
+    });
+    if(r.status === 401){ girisEkraninaDon('Oturum süresi doldu, tekrar gir.'); return; }
+    if(!r.ok) return;
+    dilimPerKg = (await r.json()).dilimPerKg || {};
+    siparisCiz();
+  }catch(e){ /* ipucu yoksa giris yine calisir */ }
+}
+
+const kalem = id => sepet[id] ?? (sepet[id] = { dilim:0, kg:0, adet:0 });
+
+function sayi(x){
+  return Number.isInteger(x) ? String(x) : String(Math.round(x * 100) / 100);
+}
+
+function sepetOzeti(u){
+  const k = sepet[u.id];
+  if(!k) return '';
+  if(u.tur === 'icecek') return k.adet > 0 ? k.adet + ' adet' : '';
+  const p = [];
+  if(k.dilim > 0) p.push(k.dilim + ' dilim');
+  if(k.kg > 0) p.push(sayi(k.kg) + ' kg');
+  return p.join(' + ');
+}
+
+/* Kilo kutusuna deger girildiginde altta cikan ipucu.
+   Katsayisi olmayan urunlerde giris ENGELLENMEZ, yalnizca uyarilir --
+   girilen kilo kaybolmaz, raporda ayri kalem olarak gorunur. */
+function cevrimIpucu(u){
+  const k = sepet[u.id];
+  if(u.tur === 'icecek' || !k || !(k.kg > 0)) return null;
+  const f = dilimPerKg[u.id];
+  return f == null
+    ? { metin:'bu ürünün dilim karşılığı henüz girilmedi — kilo raporda ayrı gösterilir',
+        uyari:true }
+    : { metin:'≈ ' + sayi(k.kg * f) + ' dilim', uyari:false };
+}
+
+function siparisCiz(){
+  $('urunListe').innerHTML = URUNLER.map(u => {
+    const ozet = sepetOzeti(u);
+    const k = sepet[u.id];
+    const deger = u.tur === 'icecek'
+      ? (k?.adet ?? 0) + ' adet'
+      : (k?.dilim ?? 0) + ' dilim';
+    const ipucu = cevrimIpucu(u);
+    return `<div class="urun ${ozet ? 'dolu' : ''}">
+      <div class="urunUst">
+        <span class="urunAd">${u.ad}</span>
+        <span class="sepetOzet">${ozet}</span>
+      </div>
+      <div class="urunAlt">
+        <div class="sayac">
+          <button data-eksi="${u.id}" aria-label="${u.ad} azalt">−</button>
+          <span class="sayacDeger">${deger}</span>
+          <button class="arti" data-arti="${u.id}" aria-label="${u.ad} artır">+</button>
+        </div>
+        ${u.tur === 'baklava' ? `<div class="kgKutu">
+          <label for="kg-${u.id}">kg</label>
+          <input id="kg-${u.id}" data-kg="${u.id}" type="number"
+                 inputmode="decimal" step="0.25" min="0" max="200"
+                 value="${k?.kg > 0 ? sayi(k.kg) : ''}" placeholder="0">
+        </div>` : ''}
+      </div>
+      ${ipucu ? `<div class="cevrim ${ipucu.uyari ? 'uyari' : ''}">${ipucu.metin}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  $('urunListe').querySelectorAll('[data-arti]').forEach(b =>
+    b.addEventListener('click', () => sayacDegistir(b.dataset.arti, +1)));
+  $('urunListe').querySelectorAll('[data-eksi]').forEach(b =>
+    b.addEventListener('click', () => sayacDegistir(b.dataset.eksi, -1)));
+  $('urunListe').querySelectorAll('[data-kg]').forEach(i => {
+    i.addEventListener('change', () => kgDegistir(i.dataset.kg, i.value));
+    /* Yazarken yeniden cizmek imleci kaybettirir; yalnizca ozet tazelenir. */
+    i.addEventListener('input', () => {
+      kalem(i.dataset.kg).kg = kgOku(i.value);
+      altBarTazele();
+    });
+  });
+
+  altBarTazele();
+}
+
+function kgOku(ham){
+  const n = parseFloat(String(ham).replace(',', '.'));
+  if(!Number.isFinite(n) || n <= 0) return 0;
+  /* Worker kurusun altini reddediyor; burada da ayni yuvarlama. */
+  return Math.min(Math.round(n * 100) / 100, 200);
+}
+
+function sayacDegistir(id, yon){
+  const u = URUNLER.find(x => x.id === id);
+  const k = kalem(id);
+  if(u.tur === 'icecek') k.adet = Math.max(0, Math.min(2000, k.adet + yon));
+  else k.dilim = Math.max(0, Math.min(2000, k.dilim + yon));
+  siparisCiz();
+}
+
+function kgDegistir(id, ham){
+  kalem(id).kg = kgOku(ham);
+  siparisCiz();
+}
+
+/* Sepeti worker'in bekledigi satir listesine cevirir.
+
+   Bir urun hem dilim hem kilo tasiyabildigi icin en fazla 8x2 + 2 = 18
+   satir cikar; worker'in 20 satir siniri altinda kalir. */
+function sepettenSatirlar(){
+  const satirlar = [];
+  for(const u of URUNLER){
+    const k = sepet[u.id];
+    if(!k) continue;
+    if(u.tur === 'icecek'){
+      if(k.adet > 0) satirlar.push({ id:u.id, birim:'adet', miktar:k.adet });
+    }else{
+      if(k.dilim > 0) satirlar.push({ id:u.id, birim:'dilim', miktar:k.dilim });
+      if(k.kg > 0)    satirlar.push({ id:u.id, birim:'kg',    miktar:k.kg });
+    }
+  }
+  return satirlar;
+}
+
+function altBarTazele(){
+  const satirlar = sepettenSatirlar();
+  const siparisSekmesi = !$('siparisBolum').classList.contains('gizli');
+  $('altBar').classList.toggle('gizli', satirlar.length === 0 || !siparisSekmesi);
+  if(satirlar.length === 0) return;
+  const parcalar = URUNLER
+    .map(u => { const o = sepetOzeti(u); return o ? AD[u.id] + ': ' + o : null; })
+    .filter(Boolean);
+  $('sepetSay').textContent = parcalar.join(' · ');
+}
+
+function sepetiBosalt(){
+  sepet = {};
+  siparisCiz();
+}
+
+function oturumCiz(){
+  if(oturumKayitlari.length === 0){
+    $('oturumListe').innerHTML = '<span class="bos">Henüz sipariş kaydedilmedi.</span>';
+    return;
+  }
+  $('oturumListe').innerHTML = oturumKayitlari.map(k =>
+    `<div class="gunlukSatir"><span>${k.ozet}</span><span>${k.saat}</span></div>`
+  ).join('');
+}
+
+async function siparisKaydet(){
+  const satirlar = sepettenSatirlar();
+  if(satirlar.length === 0) return;
+  const btn = $('kaydetBtn');
+  btn.disabled = true;
+  $('siparisDurum').textContent = '';
+  try{
+    const r = await fetch(API + '/api/sales', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer ' + jeton
+      },
+      body: JSON.stringify({ satirlar })
+    });
+    if(r.status === 401){
+      girisEkraninaDon('Oturum süresi doldu, tekrar gir.');
+      return;
+    }
+    if(!r.ok) throw new Error('yazilamadi');
+
+    const ozet = URUNLER
+      .map(u => { const o = sepetOzeti(u); return o ? AD[u.id] + ' ' + o : null; })
+      .filter(Boolean).join(', ');
+    oturumKayitlari.unshift({
+      ozet, saat: new Date().toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' })
+    });
+    oturumCiz();
+    sepetiBosalt();
+    $('siparisDurum').textContent = 'Kaydedildi.';
+  }catch(e){
+    /* Sepet BILEREK korunuyor: tezgahtar siparisi bastan girmek zorunda
+       kalmasin, tekrar Kaydet'e bassin yeter. */
+    $('siparisDurum').textContent = 'Kaydedilemedi, sepet duruyor — tekrar dene.';
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+/* ================= stok ================= */
 
 async function durumYukle(){
   try{
@@ -175,8 +487,14 @@ async function degistir(id, btn){
   }
 }
 
+/* ================= baglama ================= */
+
 $('girisBtn').addEventListener('click', girisYap);
 $('sifre').addEventListener('keydown', e => { if(e.key === 'Enter') girisYap(); });
+$('sekmeSiparis').addEventListener('click', () => sekmeSec('siparis'));
+$('sekmeStok').addEventListener('click', () => sekmeSec('stok'));
+$('kaydetBtn').addEventListener('click', siparisKaydet);
+$('bosaltBtn').addEventListener('click', sepetiBosalt);
 
 if(jeton) panelAc();
 </script>

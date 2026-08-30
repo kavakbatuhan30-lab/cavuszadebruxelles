@@ -1,21 +1,43 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import worker from '../src/index.js';
 import { hashPassword } from '../src/auth.js';
+import { brusselsDate } from '../src/stock.js';
+
+/* Rapor sorgulari icinde bulunulan Bruksel ayini kullanir; test de ayni
+   kaynaktan hesaplasin ki ay donumu gecesi kirilmasin. */
+const brusselsDateSimdi = () => brusselsDate().slice(0, 7);
 
 const TUZ = 'dGVzdC1zYWx0LTEyMzQ1Ng==';
 const JETON_ANAHTARI = 'test-jeton-anahtari';
 const SIFRE = 'baklava123';
 
-/* Bellekte KV taklidi -- gercek KV'nin kullandigimiz uc metodunu tasir. */
+/* Bellekte KV taklidi -- gercek KV'nin kullandigimiz metodlarini tasir:
+   get, put (metadata ve son kullanma ile), list (onek ve imlecle).
+
+   Imlec gercekte opaktir; burada "sonraki anahtarin adi" olarak taklit
+   ediliyor. Sayfalamanin kendisi taklit edilebilsin diye yeterli. */
 function sahteKV(baslangic = {}) {
-  const depo = new Map(Object.entries(baslangic));
+  const depo = new Map(Object.entries(baslangic).map(([k, v]) => [k, { deger: v }]));
   return {
     async get(k, tip) {
-      const v = depo.get(k);
-      if (v === undefined) return null;
-      return tip === 'json' ? JSON.parse(v) : v;
+      const kayit = depo.get(k);
+      if (!kayit) return null;
+      return tip === 'json' ? JSON.parse(kayit.deger) : kayit.deger;
     },
-    async put(k, v, opts) { depo.set(k, v); if (opts) depo.set(k + ':ttl', opts.expirationTtl); },
+    async put(k, deger, opts = {}) {
+      depo.set(k, { deger, metadata: opts.metadata, ttl: opts.expirationTtl });
+    },
+    async list({ prefix = '', cursor, limit = 1000 } = {}) {
+      const hepsi = [...depo.keys()].filter(k => k.startsWith(prefix)).sort();
+      const bas = cursor ? hepsi.indexOf(cursor) : 0;
+      const parca = hepsi.slice(bas, bas + limit);
+      const bitti = bas + limit >= hepsi.length;
+      return {
+        keys: parca.map(name => ({ name, metadata: depo.get(name).metadata })),
+        list_complete: bitti,
+        cursor: bitti ? undefined : hepsi[bas + limit]
+      };
+    },
     _depo: depo
   };
 }
@@ -269,7 +291,251 @@ describe('giris denemesi siniri', () => {
 
   it('sayaca son kullanma suresi konur', async () => {
     await yanlisGiris();
-    expect(env.STOK._depo.get('rl:login:203.0.113.9:ttl')).toBe(15 * 60);
+    expect(env.STOK._depo.get('rl:login:203.0.113.9').ttl).toBe(15 * 60);
+  });
+});
+
+/* ---- Siparis defteri ---------------------------------------------------- */
+
+const siparisYaz = (satirlar, jeton) => istek('/api/sales', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Origin': 'https://cavuszadebruxelles.com',
+    ...(jeton ? { 'Authorization': `Bearer ${jeton}` } : {})
+  },
+  body: JSON.stringify({ satirlar })
+});
+
+const raporOku = (sorgu, jeton) => istek(`/api/sales${sorgu}`, {
+  headers: {
+    'Origin': 'https://cavuszadebruxelles.com',
+    ...(jeton ? { 'Authorization': `Bearer ${jeton}` } : {})
+  }
+});
+
+describe('POST /api/sales', () => {
+  it('jetonsuz istegi reddeder', async () => {
+    const r = await worker.fetch(siparisYaz([{ id: 'fistik', birim: 'dilim', miktar: 5 }]), env);
+    expect(r.status).toBe(401);
+  });
+
+  it('yabanci kaynagi reddeder', async () => {
+    const jeton = await jetonAl();
+    const r = await worker.fetch(istek('/api/sales', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': 'https://kotu.example',
+        'Authorization': `Bearer ${jeton}`
+      },
+      body: JSON.stringify({ satirlar: [{ id: 'fistik', birim: 'dilim', miktar: 5 }] })
+    }), env);
+    expect(r.status).toBe(403);
+  });
+
+  it('siparisi kaydeder', async () => {
+    const jeton = await jetonAl();
+    const satirlar = [
+      { id: 'fistik', birim: 'dilim', miktar: 5 },
+      { id: 'ceviz', birim: 'kg', miktar: 1 },
+      { id: 'su', birim: 'adet', miktar: 2 }
+    ];
+    const r = await worker.fetch(siparisYaz(satirlar, jeton), env);
+    expect(r.status).toBe(200);
+    const d = await r.json();
+    expect(d.ok).toBe(true);
+    expect(d.anahtar.startsWith('sale:')).toBe(true);
+    expect(d.satirlar).toEqual(satirlar);
+  });
+
+  it('satirlari metadataya yazar -- rapor get() cagirmadan okuyabilsin', async () => {
+    const jeton = await jetonAl();
+    const r = await worker.fetch(
+      siparisYaz([{ id: 'fistik', birim: 'dilim', miktar: 5 }], jeton), env);
+    const { anahtar } = await r.json();
+    expect(env.STOK._depo.get(anahtar).metadata).toEqual({ s: [['fistik', 'dilim', 5]] });
+  });
+
+  it('es zamanli iki siparis birbirini ezmez', async () => {
+    /* Bu modulun tasarim gerekcesi: her siparis kendi anahtarina gider,
+       oku-degistir-yaz yok. Ikisi de kalmali. */
+    const jeton = await jetonAl();
+    const [a, b] = await Promise.all([
+      worker.fetch(siparisYaz([{ id: 'fistik', birim: 'dilim', miktar: 5 }], jeton), env),
+      worker.fetch(siparisYaz([{ id: 'ceviz', birim: 'dilim', miktar: 3 }], jeton), env)
+    ]);
+    const ka = (await a.json()).anahtar;
+    const kb = (await b.json()).anahtar;
+    expect(ka).not.toBe(kb);
+    expect([...env.STOK._depo.keys()].filter(k => k.startsWith('sale:'))).toHaveLength(2);
+  });
+
+  it('bos siparisi reddeder', async () => {
+    const jeton = await jetonAl();
+    const r = await worker.fetch(siparisYaz([], jeton), env);
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toBe('bos_siparis');
+  });
+
+  it('bilinmeyen urunu reddeder', async () => {
+    const jeton = await jetonAl();
+    const r = await worker.fetch(
+      siparisYaz([{ id: 'lahmacun', birim: 'dilim', miktar: 1 }], jeton), env);
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toBe('gecersiz_satir');
+  });
+
+  it('negatif miktari reddeder', async () => {
+    const jeton = await jetonAl();
+    const r = await worker.fetch(
+      siparisYaz([{ id: 'fistik', birim: 'dilim', miktar: -5 }], jeton), env);
+    expect(r.status).toBe(400);
+  });
+
+  it('bozuk JSON gelirse 400 doner', async () => {
+    const jeton = await jetonAl();
+    const r = await worker.fetch(istek('/api/sales', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': 'https://cavuszadebruxelles.com',
+        'Authorization': `Bearer ${jeton}`
+      },
+      body: '{bozuk'
+    }), env);
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toBe('bad_json');
+  });
+
+  it('stok kaydina dokunmaz', async () => {
+    const jeton = await jetonAl();
+    await worker.fetch(siparisYaz([{ id: 'fistik', birim: 'dilim', miktar: 5 }], jeton), env);
+    const r = await worker.fetch(istek('/api/stock'), env);
+    expect((await r.json()).out).toEqual([]);
+  });
+});
+
+describe('GET /api/sales', () => {
+  async function doldur(jeton, siparisler) {
+    for (const s of siparisler) {
+      const r = await worker.fetch(siparisYaz(s, jeton), env);
+      expect(r.status).toBe(200);
+    }
+  }
+
+  it('jetonsuz istegi reddeder', async () => {
+    /* Satis miktari isletmenin ic verisi -- stok gibi herkese acik degil. */
+    const r = await worker.fetch(raporOku('?month=2026-08'), env);
+    expect(r.status).toBe(401);
+  });
+
+  it('kayit yokken bos rapor doner', async () => {
+    const jeton = await jetonAl();
+    const r = await worker.fetch(raporOku('?month=2026-08', jeton), env);
+    expect(r.status).toBe(200);
+    const d = await r.json();
+    expect(d.ay).toBe('2026-08');
+    expect(d.siparis).toBe(0);
+    expect(d.toplam).toEqual({});
+  });
+
+  it('ay verilmezse icinde bulunulan ayi kullanir', async () => {
+    const jeton = await jetonAl();
+    const d = await (await worker.fetch(raporOku('', jeton), env)).json();
+    expect(d.ay).toMatch(/^\d{4}-\d{2}$/);
+  });
+
+  it('gecersiz ayi reddeder', async () => {
+    const jeton = await jetonAl();
+    const r = await worker.fetch(raporOku('?month=2026-13', jeton), env);
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toBe('gecersiz_ay');
+  });
+
+  it('siparisleri urun bazinda toplar', async () => {
+    const jeton = await jetonAl();
+    await doldur(jeton, [
+      [{ id: 'fistik', birim: 'dilim', miktar: 5 }],
+      [{ id: 'fistik', birim: 'dilim', miktar: 7 }, { id: 'su', birim: 'adet', miktar: 1 }]
+    ]);
+    const ay = brusselsDateSimdi();
+    const d = await (await worker.fetch(raporOku(`?month=${ay}`, jeton), env)).json();
+    expect(d.siparis).toBe(2);
+    expect(d.toplam.fistik.dilim).toBe(12);
+    expect(d.toplam.su.adet).toBe(1);
+  });
+
+  it('kilo girisini dilime cevirir', async () => {
+    const jeton = await jetonAl();
+    await doldur(jeton, [[{ id: 'ceviz', birim: 'kg', miktar: 2 }]]);
+    const ay = brusselsDateSimdi();
+    const d = await (await worker.fetch(raporOku(`?month=${ay}`, jeton), env)).json();
+    expect(d.toplam.ceviz.dilim).toBe(60);   /* 2 kg x 30 dilim */
+  });
+
+  it('cevrim tablosunu yanitla birlikte doner', async () => {
+    /* Panel kendi kopyasini tutmasin diye: tablo tek yerde, worker'da. */
+    const jeton = await jetonAl();
+    const d = await (await worker.fetch(raporOku('?month=2026-08', jeton), env)).json();
+    expect(d.dilimPerKg.fistik).toBe(25);
+    expect(d.dilimPerKg.sarma).toBeNull();
+  });
+
+  it('baska ayin siparisini bu aya karistirmaz', async () => {
+    const jeton = await jetonAl();
+    await doldur(jeton, [[{ id: 'fistik', birim: 'dilim', miktar: 5 }]]);
+    const d = await (await worker.fetch(raporOku('?month=1999-01', jeton), env)).json();
+    expect(d.siparis).toBe(0);
+  });
+
+  it('gun bazinda kirilim verir', async () => {
+    const jeton = await jetonAl();
+    await doldur(jeton, [[{ id: 'fistik', birim: 'dilim', miktar: 5 }]]);
+    const ay = brusselsDateSimdi();
+    const d = await (await worker.fetch(raporOku(`?month=${ay}`, jeton), env)).json();
+    expect(Object.keys(d.gunler)).toHaveLength(1);
+  });
+
+  it('bin anahtardan fazlasinda sayfalamayi surdurur', async () => {
+    /* KV list() bir cagrida en fazla 1000 anahtar doner. Imlec dongusu
+       kirilirsa rapor sessizce eksik cikardi -- en tehlikeli hata bicimi. */
+    const jeton = await jetonAl();
+    for (let i = 0; i < 1400; i++) {
+      await env.STOK.put(
+        `sale:2026-07-15:${1000000000000 + i}-x${i}`,
+        JSON.stringify({ tarih: '2026-07-15', satirlar: [] }),
+        { metadata: { s: [['fistik', 'dilim', 1]] } }
+      );
+    }
+    const d = await (await worker.fetch(raporOku('?month=2026-07', jeton), env)).json();
+    expect(d.siparis).toBe(1400);
+    expect(d.toplam.fistik.dilim).toBe(1400);
+  });
+
+  it('aylik trend araligi doner', async () => {
+    const jeton = await jetonAl();
+    const d = await (await worker.fetch(raporOku('?from=2026-06&to=2026-08', jeton), env)).json();
+    expect(d.aylar.map(a => a.ay)).toEqual(['2026-06', '2026-07', '2026-08']);
+    expect(d.aylar[0].gunler).toBeUndefined();   /* trendde gun kirilimi yok */
+  });
+
+  it('ters araligi reddeder', async () => {
+    const jeton = await jetonAl();
+    const r = await worker.fetch(raporOku('?from=2026-08&to=2026-06', jeton), env);
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toBe('gecersiz_aralik');
+  });
+
+  it('trendde ayi ayirir', async () => {
+    const jeton = await jetonAl();
+    await env.STOK.put('sale:2026-06-10:1-a',
+      JSON.stringify({}), { metadata: { s: [['fistik', 'dilim', 4]] } });
+    await env.STOK.put('sale:2026-07-10:1-b',
+      JSON.stringify({}), { metadata: { s: [['fistik', 'dilim', 9]] } });
+    const d = await (await worker.fetch(raporOku('?from=2026-06&to=2026-07', jeton), env)).json();
+    expect(d.aylar[0].toplam.fistik.dilim).toBe(4);
+    expect(d.aylar[1].toplam.fistik.dilim).toBe(9);
   });
 });
 

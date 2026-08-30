@@ -1,6 +1,6 @@
 # Çavuşzade Baklava Menüsü — Proje Durumu
 
-**Son güncelleme:** 2026-08-29
+**Son güncelleme:** 2026-08-30
 **Amacı:** Başka bir bilgisayarda çalışmaya devam edecek olan için durum özeti.
 Buradaki her madde dosyalardan okunarak doğrulandı, hafızadan yazılmadı.
 
@@ -27,14 +27,18 @@ cavuszade/
 │       ├── ring.mp4                  387 KB, dönen baklava animasyonu
 │       ├── ring-poster.webp          10,6 KB, animasyonun ilk karesi
 │       └── *.webp                    8 ürün fotoğrafı + logo
-├── admin/index.html                  stok yönetim paneli
-├── worker/                           Cloudflare Worker (stok servisi)
-│   ├── src/{stock,auth,index}.js
-│   ├── test/                         51 test
+├── admin/
+│   ├── index.html                    tezgâh paneli: sipariş girişi + stok
+│   └── rapor.html                    ay sonu raporu, grafikler
+├── worker/                           Cloudflare Worker (stok + sipariş)
+│   ├── src/{stock,sales,auth,index}.js
+│   ├── test/                         120 test
 │   ├── scripts/sifre-kur.mjs         panel şifresini kurar
 │   └── wrangler.jsonc
 ├── docs/
 │   ├── halka-animasyonu-notlari.md   ⚠️ animasyona dokunacaksan ÖNCE BUNU OKU
+│   ├── 2026-08-30-siparis-defteri-design.md  ⚠️ satış/kasa konusuna
+│   │                                 girmeden ÖNCE BUNU OKU (GKS sınırı)
 │   ├── 2026-08-28-stok-yonetimi-design.md   stok tasarımı + gerekçeler
 │   ├── 2026-08-28-stok-yonetimi-plan.md     uygulama planı
 │   └── 2026-08-04-qr-menu-design.md  ilk tasarım kararları
@@ -139,7 +143,7 @@ menüyü yeni açan müşteri onu "Tükendi" görüyor.
 | Worker | `cavuszade-stok.cavuszade-stok.workers.dev` |
 | KV alanı | `b2ab4262fb6943f194bae02c91b830e9`, anahtar `shop:cavuszade:stock` |
 | Gizli değerler | `SIFRE_TUZU`, `SIFRE_OZETI`, `JETON_ANAHTARI` (Cloudflare'da) |
-| Testler | 51, `cd worker && npm test` |
+| Testler | stok tarafı 51; depo geneli 120, `cd worker && npm test` |
 
 ### Bilmen gereken üç tasarım kararı
 
@@ -155,16 +159,61 @@ kendiliğinden çalıştığı doğrulandı.
 **Yazma yolunda önce sıfırlama, sonra değişiklik.** Ters sırada dünün
 tükenmiş ürünleri bugüne taşınır ve bu ekranda hemen görünmez. Test var.
 
-### Ürün listesi iki yerde
+### Ürün listesi ÜÇ yerde
 
-`menu/index.html` içindeki `PRODUCTS` ile `admin/index.html` içindeki
-`URUNLER` kimlikleri **birebir eşleşmeli**. Ürün eklenirse ikisi de
-güncellenmeli. Bilinçli ödün; fiyat düzenleme panele alınınca kalkar.
+`menu/index.html` (`PRODUCTS`), `admin/index.html` (`URUNLER`) ve
+`worker/src/sales.js` (`DILIM_PER_KG` + `ADET_URUNLERI`) kimlikleri
+**birebir eşleşmeli**. Ürün eklenirse üçü de güncellenmeli. Bilinçli ödün;
+fiyat düzenleme panele alınınca azalır.
 
 ### Şifre
 
 `worker/scripts/sifre-kur.mjs` çalıştırılıp `wrangler secret bulk` ile
 yüklenir. Şifre hiçbir yere kaydedilmez — unutulursa yenisi konur.
+
+---
+
+## Sipariş defteri (2026-08-30'da yazıldı, HENÜZ DAĞITILMADI)
+
+Tezgâhtar gelen siparişi `admin/` panelinden işaretliyor; ay sonunda patron
+`admin/rapor.html`'de hangi üründen ne kadar çıktığını grafikle görüyor.
+
+**Bu bir kasa değildir.** Fiş kesmez, tutar hesaplamaz, fiyat bilmez, resmî
+satış kaydının yerine geçmez. Yalnızca "tezgâhtan ne kadar ürün çıktı"
+sayısını tutar — kâğıt defterin dijital hali. Sınırın gerekçesi
+`docs/2026-08-30-siparis-defteri-design.md` içinde; muhasebeciye teyit
+ettirilmeli.
+
+| | |
+|---|---|
+| Uç noktalar | `POST /api/sales` (yazma), `GET /api/sales` (rapor) — **ikisi de jetonlu** |
+| KV anahtarı | `sale:YYYY-MM-DD:<zaman>-<rastgele>`, aynı KV alanında |
+| Yeni gizli değer | **yok** — mevcut `JETON_ANAHTARI` kullanılıyor |
+| Testler | toplam 120, `cd worker && npm test` |
+
+### Bilmen gereken üç tasarım kararı
+
+**Temel birim dilim, ama kilo da girilebilir.** Müşteri "5 dilim şundan"
+diyor, tezgâhtar öyle yazıyor. "Bir kilo fıstıklı" diyen için `kg` kutusu
+var — 25 kez tuşa basmasın. İkisi aynı üründe birlikte de girilebilir.
+
+**Girişler HAM haliyle saklanır, çevrilmiş değil.** "1 kg" olarak girilen
+şey "1 kg" olarak yazılır; dilime çevirme rapor anında yapılır. Böylece
+`DILIM_PER_KG` katsayısı sonradan düzeltilirse **geçmiş aylar da
+kendiliğinden düzelir.**
+
+**Her sipariş kendi anahtarına yazılır.** Oku-değiştir-yaz döngüsü yok, iki
+tezgâhtar aynı anda kaydetse bile sipariş kaybolmaz. Satırlar ayrıca
+anahtarın metadata'sına konur; aylık rapor böylece sipariş başına ayrı bir
+`get()` çağırmaz — Workers'ın alt istek sınırı yüzünden bu zorunluydu.
+
+### Dağıtım için kalan
+
+```bash
+cd worker && npm test && npx wrangler deploy
+```
+
+Yeni gizli değer veya yeni KV alanı gerekmiyor.
 
 ---
 
@@ -175,21 +224,33 @@ yüklenir. Şifre hiçbir yere kaydedilmez — unutulursa yenisi konur.
 QR basılıp masalara yerleştirilecek. Basımdan sonra birkaç farklı telefonla
 (iOS + Android) gerçek masa ışığında taranıp test edilmesi iyi olur.
 
-### ⚪ Sonraki büyük adım: sertifikalı kasadan veri çekmek
+### ⚪ İki ürünün "1 kiloya kaç dilim" karşılığı eksik
 
-Kullanıcı bu sistemi aylık 50 €'ya satmak istiyor ve satış/KDV modülü
-planlıyor. **Belçika'da GKS / witte kassa zorunluluğu var** — sertifikasız
-bir satış kaydı sistemi müşteriye ceza yazdırabilir. Ayrıca içecekler masada
-%21 (kullanıcının varsaydığı %12 değil).
+`worker/src/sales.js` içindeki `DILIM_PER_KG` tablosunda **Fıstık Sarma** ve
+**Havuç Dilim** `null`. O ürünlere kilo girişi çalışıyor ve kaybolmuyor ama
+dilim toplamına katılmıyor, raporda ayrıca "çevrilemedi" diye görünüyor.
+İki sayı girilince geçmiş aylar da kendiliğinden düzelir — kayıtlar ham
+haliyle saklandığı için elle onarım gerekmiyor.
 
-Doğru yön: kasayı taklit etmek yerine sertifikalı kasadan veri çekip üstüne
-analitik koymak. Detay `docs/2026-08-28-stok-yonetimi-design.md` içinde
-"Kapsam dışı" başlığında.
-
-### ⚪ Eş zamanlı yazmada kayıp güncelleme riski
+### ⚪ Eş zamanlı yazmada kayıp güncelleme riski — yalnızca STOKTA
 
 KV'de atomik güncelleme yok. Tek kişi kullanırken sorun değil; **ikinci bir
-personel aynı anda çalışmaya başlarsa** Durable Objects'e geçmek gerekir.
+personel aynı anda stok değiştirmeye başlarsa** Durable Objects'e geçmek
+gerekir. **Sipariş defterinde bu risk yok** — her sipariş kendi anahtarına
+yazılıyor, oku-değiştir-yaz döngüsü kurulmuyor.
+
+## Kapatılan işler
+
+### ❌ Satış/KDV modülü — İPTAL (2026-08-30)
+
+Bir ara "sertifikalı kasadan veri çekip üstüne satış/KDV analitiği koymak"
+sonraki büyük adım olarak duruyordu. **Bu madde kapatıldı, tekrar açılmasın.**
+
+Belçika'da GKS / *witte kassa* kapsamındaki işletmede müşteriye verilen fiş
+sertifikalı kasadan çıkmak zorunda. O zincire giren yazılım yazmak işletmeye
+ceza yazdırabilir. Yerine **sipariş defteri** yapıldı: miktar sayar, para
+görmez, fiş kesmez (aşağıya bakın). Gerekçenin tamamı
+`docs/2026-08-30-siparis-defteri-design.md` içinde.
 
 ## Yeni bir oturuma başlarken
 
@@ -199,5 +260,7 @@ cd worker && npm test
 ```
 
 Animasyona dokunacaksan `docs/halka-animasyonu-notlari.md`, stoğa
-dokunacaksan `docs/2026-08-28-stok-yonetimi-design.md` oku. İkisinde de
-"denendi, olmadı" bölümleri var — aynı çıkmaz sokaklara tekrar girmemek için.
+dokunacaksan `docs/2026-08-28-stok-yonetimi-design.md`, sipariş/satış/rapor
+tarafına dokunacaksan `docs/2026-08-30-siparis-defteri-design.md` oku.
+Hepsinde "denendi, olmadı" ya da "bilinçli olarak yapılmadı" bölümleri var —
+aynı çıkmaz sokaklara tekrar girmemek için.

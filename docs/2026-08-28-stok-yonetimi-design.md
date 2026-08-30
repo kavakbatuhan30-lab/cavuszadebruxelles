@@ -264,6 +264,11 @@ Satış ve KDV kısmının Belçika'da **GKS / witte kassa** mevzuatına girdiğ
 sertifikasız bir sistemin yasal risk taşıdığı ayrıca not edilmiştir; o modül
 muhasebeci görüşü alınmadan tasarlanmamalıdır.
 
+> **2026-08-30 güncellemesi:** Satış/KDV modülü **iptal edildi** — yapılmayacak.
+> Yerine yalnızca miktar sayan, para görmeyen bir **sipariş defteri** yazıldı.
+> Karar ve gerekçeler: `docs/2026-08-30-siparis-defteri-design.md`.
+> Bu belgedeki "satış kaydı kapsam dışıdır" maddesi hâlâ geçerli.
+
 ## Kullanıcının yapacakları
 
 1. **Cloudflare hesabı açmak** (ücretsiz) — hesap oluşturma işi kullanıcıya aittir
