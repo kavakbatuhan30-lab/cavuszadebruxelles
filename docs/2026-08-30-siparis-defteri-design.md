@@ -144,6 +144,12 @@ listede sıralanıyorlardı ve "480 adet su" çubuğu "395 dilim soğuk
 baklava"dan uzun çıkıyordu — hiçbir şey ifade etmeyen bir kıyas. Adet ile
 dilim aynı uzunluk ölçeğini paylaşamaz.
 
+**Rapor ayrı sayfa değil, üçüncü sekme.** Önce `admin/rapor.html` olarak
+ayrı yazılmıştı; gerekçe "tezgâhtarın günlük ekranı grafik koduyla
+şişmesin"di. Tek sayfada birleştirilince bu maliyet zaten kalktı: rapor
+verisi sekmeye ilk basıldığında çekiliyor, ayrıca giriş/ürün listesi/API
+sabiti iki dosyada kopyalanmıyor. Üçü aynı adreste, tek şifreyle.
+
 **Eğilim için on çizgi yerine on küçük grafik.** Üst üste binen on çizgi
 okunmuyor. Her panelin kendi ölçeği var, çünkü sorulan soru "bu ürün
 yükseliyor mu düşüyor mu" — paneller arası büyüklük kıyasını üstteki çubuk

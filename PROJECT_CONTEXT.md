@@ -27,9 +27,8 @@ cavuszade/
 │       ├── ring.mp4                  387 KB, dönen baklava animasyonu
 │       ├── ring-poster.webp          10,6 KB, animasyonun ilk karesi
 │       └── *.webp                    8 ürün fotoğrafı + logo
-├── admin/
-│   ├── index.html                    tezgâh paneli: sipariş girişi + stok
-│   └── rapor.html                    ay sonu raporu, grafikler
+├── admin/index.html                  tezgâh paneli — TEK sayfa, üç sekme:
+│                                     Sipariş · Stok · Rapor
 ├── worker/                           Cloudflare Worker (stok + sipariş)
 │   ├── src/{stock,sales,auth,index}.js
 │   ├── test/                         120 test
@@ -175,8 +174,12 @@ yüklenir. Şifre hiçbir yere kaydedilmez — unutulursa yenisi konur.
 
 ## Sipariş defteri (2026-08-30'da yazıldı, HENÜZ DAĞITILMADI)
 
-Tezgâhtar gelen siparişi `admin/` panelinden işaretliyor; ay sonunda patron
-`admin/rapor.html`'de hangi üründen ne kadar çıktığını grafikle görüyor.
+Hepsi tek adreste: **cavuszadebruxelles.com/admin/** — tek şifre, üç sekme
+(**Sipariş · Stok · Rapor**). Tezgâhtar siparişi Sipariş sekmesinden
+işaretliyor; ay sonunda patron Rapor sekmesinde hangi üründen ne kadar
+çıktığını grafikle görüyor. Rapor verisi ancak o sekmeye ilk basıldığında
+çekiliyor — tezgâhtarın gün boyu kullandığı ekran her açılışta aylık tarama
+tetiklemesin diye.
 
 **Bu bir kasa değildir.** Fiş kesmez, tutar hesaplamaz, fiyat bilmez, resmî
 satış kaydının yerine geçmez. Yalnızca "tezgâhtan ne kadar ürün çıktı"
